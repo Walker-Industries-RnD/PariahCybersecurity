@@ -28,13 +28,19 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 </div>
 
+<br>
+<br>
 
 <br>
 
 [Learn More About Walker Industries!](https://walkerindustries.xyz)
+
 [Join the Discord!](https://discord.gg/H8h8scsxtH)
+
 [Support Me on Patreon!](https://www.patreon.com/walkerdev)
+
 [Keep Up With Kennaness' Art Process!!](https://www.artstation.com/kennaness)
+
 
 
 (Note, there are many comments all around; you'll see as time continued they decreased in quality and quantity. I plan on adding more comments again at a later time, but I currently have other projects I would like to focus on! There are a few functional updates which will come later, but after SecureString is fixed, everything should be fine to use in production!)
@@ -43,17 +49,24 @@ This is fully open source and free forever! It was made to target Windows, Linux
 ## What's Included?
 
 🔐Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption 
+
 📄JSONDataHandler - A Simple Yet Powerful Method Of Writing, Saving and Getting Data
+
 🗝️SecretManager - A Local Based Secrets Manager
+
 📨DataRequest - For Creating, Storing and Getting Data Readable By Other Programs Securely
+
 👤Accounts - A Barebones Example Of A Local Based Account System
+
 🔐AccountsWithSessions - A Secure, Local Based Account System With Session Verification
+
 
 And Much, Much More!
 
-Check the [[Find The Right Solution For You!]] Page To Learn More! This also acts as the table of contents!
-You Can Also Use [[The Pariah's Codex of Autonomous Instruments]] To View Almost All Pariah Focused Functions!
-Finally, you can view examples directly within [[The Pariah's Grimoire of Applied Functionality]]!
+Check the [Find The Right Solution For You!](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/Find%20The%20Right%20Solution%20For%20You!.html) Page To Learn More! This also acts as the table of contents!  
+You Can Also Use [The Pariah's Codex of Autonomous Instruments](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/The%20Pariah's%20Codex%20of%20Autonomous%20Instruments.html) To View Almost All Pariah Focused Functions!  
+Finally, you can view examples directly within [The Pariah's Grimoire of Applied Functionality](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/The%20Pariah's%20Grimoire%20of%20Applied%20Functionality.html)!
+
 
 
 ## How Do I Use It?
