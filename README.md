@@ -7,6 +7,9 @@ Pariah Cybersecurity is a .NET 8.0 Based Library. Primarily developed for progra
 
 This is fully open source and free forever! It was made to target Windows, Linux and MacOS!
 
+## View the wiki  
+[Welcome to Pariah Cybersecurity Wiki](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Welcome%20To%20Pariah%20Cybersecurity.html)
+
 <div style="white-space: nowrap;">
 
 <div style="display: inline-block; vertical-align: top; width: 48%; margin-right: 2%;">
@@ -18,7 +21,7 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 <div style="display: inline-block; vertical-align: top; width: 48%;">
   <h3>🎨 Art By Kennaness</h3>
-  <img src="imgs/Untitled1700_20250212015725.png" alt="Kennaness" height="200"><br>
+<img src="imgs/Untitled1700_20250212015725.png" alt="Ada" height="200"><br>
   "When Will I Get My Isekai"<br>
   <a href="https://bsky.app/profile/kennaness.bsky.social">&gt; Her Bluesky</a>
 </div>
