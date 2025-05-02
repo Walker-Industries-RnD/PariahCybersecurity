@@ -130,6 +130,16 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 
 
 ## License
-#### This project is licensed under the [NON-AI Mozilla Public License Version 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0).
+This project is licensed under the [NON-AI Mozilla Public License Version 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0).
+
+All images on this page were created by the artist Kennaness and are displayed here with permission.
+
+
+All artwork displayed on this site was created by the artist Kennaness and is used with express permission.
+These images are provided for viewing purposes only.
+You may not copy, download, distribute, modify, reproduce, use in AI training or datasets, or republish these images in any form — whether for personal, commercial, or non-commercial purposes.
+Use of these images in any machine learning system, dataset, or generative model is strictly prohibited.
+
+Any unauthorized use, including but not limited to reproduction, redistribution, or AI-related use, will  be pursued to the fullest extent permitted under applicable law, including seeking damages, injunctive relief, and legal fees.
 
 
