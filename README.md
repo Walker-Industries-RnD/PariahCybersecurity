@@ -30,7 +30,6 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 
 <br>
-## [View The Github Project!](https://github.com/Walker-Industries-RnD/PariahCybersecurity)
 
 [Learn More About Walker Industries!](https://walkerindustries.xyz)
 [Join the Discord!](https://discord.gg/H8h8scsxtH)
