@@ -48,17 +48,17 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 ## What's Included?
 
-🔐Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption 
+🔐 Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption 
 
-📄JSONDataHandler - A Simple Yet Powerful Method Of Writing, Saving and Getting Data
+📄 JSONDataHandler - A Simple Yet Powerful Method Of Writing, Saving and Getting Data
 
-🗝️SecretManager - A Local Based Secrets Manager
+🗝️ SecretManager - A Local Based Secrets Manager
 
-📨DataRequest - For Creating, Storing and Getting Data Readable By Other Programs Securely
+📨 DataRequest - For Creating, Storing and Getting Data Readable By Other Programs Securely
 
-👤Accounts - A Barebones Example Of A Local Based Account System
+👤 Accounts - A Barebones Example Of A Local Based Account System
 
-🔐AccountsWithSessions - A Secure, Local Based Account System With Session Verification
+🔐 AccountsWithSessions - A Secure, Local Based Account System With Session Verification
 
 
 And Much, Much More!
@@ -108,7 +108,7 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 - BouncyCastle.NetCore
 - Ceras
 - k4os.Compression.LZ4
-- Konscious.Security.Cryptography.Argon2
+  - Konscious.Security.Cryptography.Argon2
 - Newtonsoft.Json
 - Parquet.Net
 
@@ -124,7 +124,7 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 
 ## Special Thanks
 
-- To Kennaness for helping out between making art, hearing my code crash outs and being a good bud
+- To Kennaness for helping out between making art, hearing my code crash outs and being my goddess
 - My friends for supporting me through the development process
 - The Walker Industries' community on Discord for their support
 
