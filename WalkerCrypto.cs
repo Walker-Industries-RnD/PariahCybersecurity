@@ -1,14 +1,12 @@
-﻿using System;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Security;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
-using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
+
+using SecureData = WISecureData.SecureData;
+
 
 namespace Walker.Crypto
 {
@@ -37,15 +35,16 @@ namespace Walker.Crypto
             return bytes;
         }
 
-        // Derive a 256-bit key by hashing the SecureString with SHA-256
-        public static byte[] DeriveKey(SecureString password, int keyBytes)
+        // Derive a 256-bit key by hashing the SecureData with SHA-256
+        public static byte[] DeriveKey(SecureData password, int keyBytes)
         {
-            IntPtr ptr = Marshal.SecureStringToGlobalAllocUnicode(password);
+            if (password == null) throw new ArgumentNullException(nameof(password));
+
+            string pwd = password.ConvertToString();
             try
             {
-                string pwd = Marshal.PtrToStringUni(ptr);
                 using var sha = SHA256.Create();
-                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(pwd));
+                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(pwd ?? string.Empty));
                 if (hash.Length == keyBytes) return hash;
                 var key = new byte[keyBytes];
                 Array.Copy(hash, key, Math.Min(hash.Length, keyBytes));
@@ -53,12 +52,15 @@ namespace Walker.Crypto
             }
             finally
             {
-                Marshal.ZeroFreeGlobalAllocUnicode(ptr);
+                Array.Clear(password.ConvertToBytes(), 0, password.ConvertToBytes().Length);
             }
         }
 
-        public static AESEncryptedText Encrypt(string plainText, SecureString password)
+        public static AESEncryptedText Encrypt(string plainText, SecureData password)
         {
+            if (plainText == null) throw new ArgumentNullException(nameof(plainText));
+            if (password == null) throw new ArgumentNullException(nameof(password));
+
             var aes = new GcmBlockCipher(new AesEngine());
             byte[] iv = GenerateRandomBytes(12);
             byte[] key = DeriveKey(password, 32);
@@ -78,17 +80,22 @@ namespace Walker.Crypto
             };
         }
 
-        public static SecureString Decrypt(AESEncryptedText encrypted, SecureString password)
+        public static SecureData Decrypt(AESEncryptedText encrypted, SecureData password)
         {
+            if (encrypted.EncryptedText == null || encrypted.IV == null)
+                throw new ArgumentNullException(nameof(encrypted));
+            if (password == null) throw new ArgumentNullException(nameof(password));
+
             string plain = Decrypt(encrypted.EncryptedText, encrypted.IV, password);
-            var ss = new SecureString();
-            foreach (char c in plain) ss.AppendChar(c);
-            ss.MakeReadOnly();
-            return ss;
+            return SecureData.FromString(plain);
         }
 
-        public static string Decrypt(string encryptedText, string ivBase64, SecureString password)
+        public static string Decrypt(string encryptedText, string ivBase64, SecureData password)
         {
+            if (encryptedText == null) throw new ArgumentNullException(nameof(encryptedText));
+            if (ivBase64 == null) throw new ArgumentNullException(nameof(ivBase64));
+            if (password == null) throw new ArgumentNullException(nameof(password));
+
             var aes = new GcmBlockCipher(new AesEngine());
             byte[] iv = Convert.FromBase64String(ivBase64);
             byte[] key = DeriveKey(password, 32);
@@ -102,11 +109,12 @@ namespace Walker.Crypto
 
             return Encoding.UTF8.GetString(plainBuf, 0, off);
         }
+
     }
 
     public static class AsyncAESEncryption
     {
-        public static async Task<SimpleAESEncryption.AESEncryptedText> EncryptAsync(string plainText, SecureString password, Action<double> progress = null)
+        public static async Task<SimpleAESEncryption.AESEncryptedText> EncryptAsync(string plainText, SecureData password, Action<double> progress = null)
         {
             return await Task.Run(() =>
             {
@@ -137,10 +145,10 @@ namespace Walker.Crypto
             });
         }
 
-        public static Task<string> DecryptAsync(SimpleAESEncryption.AESEncryptedText enc, SecureString pwd, Action<double> progress = null)
+        public static Task<string> DecryptAsync(SimpleAESEncryption.AESEncryptedText enc, SecureData pwd, Action<double> progress = null)
             => DecryptAsync(enc.EncryptedText, enc.IV, pwd, progress);
 
-        public static async Task<string> DecryptAsync(string encryptedText, string ivBase64, SecureString password, Action<double> progress = null)
+        public static async Task<string> DecryptAsync(string encryptedText, string ivBase64, SecureData password, Action<double> progress = null)
         {
             return await Task.Run(() =>
             {
@@ -166,14 +174,14 @@ namespace Walker.Crypto
             });
         }
 
-        public static async Task<SimpleAESEncryption.AESEncryptedText> EncryptBytesAsync(byte[] data, SecureString password, Action<double> progress = null)
+        public static async Task<SimpleAESEncryption.AESEncryptedText> EncryptBytesAsync(byte[] data, SecureData password, Action<double> progress = null)
         {
             // Convert chunk to Base64 string
             string chunkStr = Convert.ToBase64String(data);
             return await EncryptAsync(chunkStr, password, progress);
         }
 
-        public static async Task<byte[]> DecryptBytesAsync(SimpleAESEncryption.AESEncryptedText enc, SecureString password, Action<double> progress = null)
+        public static async Task<byte[]> DecryptBytesAsync(SimpleAESEncryption.AESEncryptedText enc, SecureData password, Action<double> progress = null)
         {
             string base64 = await DecryptAsync(enc, password, progress);
             return Convert.FromBase64String(base64);
@@ -185,7 +193,7 @@ namespace Walker.Crypto
         private const int ChunkSize = 4 * 1024 * 1024; // 4MiB per chunk
 
    
-        public static async Task EncryptFileAsync(string inputPath, string outputPath, SecureString password, Action<double> progress = null)
+        public static async Task EncryptFileAsync(string inputPath, string outputPath, SecureData password, Action<double> progress = null)
         {
             using var input = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
             using var writer = new StreamWriter(outputPath, false, Encoding.UTF8);
@@ -212,7 +220,7 @@ namespace Walker.Crypto
             await writer.FlushAsync();
         }
 
-        public static async Task DecryptFileAsync(string inputPath, string outputPath, SecureString password, Action<double> progress = null)
+        public static async Task DecryptFileAsync(string inputPath, string outputPath, SecureData password, Action<double> progress = null)
         {
             using var reader = new StreamReader(inputPath, Encoding.UTF8);
             using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
