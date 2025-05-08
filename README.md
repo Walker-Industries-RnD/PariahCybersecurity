@@ -1,4 +1,4 @@
-[![Project Replicant](ProjectReplicant.png)](https://walkerdev.itch.io/project-replicant)
+[![Project Replicant](imgs/ProjectReplicant.png)](https://walkerdev.itch.io/project-replicant)
 
 ![Pariah Cybersec](imgs/PariahCybersec.png)
 
