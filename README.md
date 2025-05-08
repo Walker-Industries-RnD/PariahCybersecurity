@@ -1,5 +1,6 @@
+[![Project Replicant](ProjectReplicant.png)](https://walkerdev.itch.io/project-replicant)
 
-![Pariah Cybersec](imgs/Pariah-Cybersec-(3).png)
+![Pariah Cybersec](imgs/PariahCybersec.png)
 
 ## What is Pariah Cybersecurity?
 
@@ -14,14 +15,14 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 <div style="display: inline-block; vertical-align: top; width: 48%; margin-right: 2%;">
   <h3>💻 Code By WalkerDev</h3>
-  <img src="imgs/Untitled1637_20241230144006.png" alt="WalkerDev" height="200"><br>
+  <img src="imgs/WalkerDev.png" alt="WalkerDev" height="200"><br>
   "Loving Coding Is Intrinsically The Same As Hating Yourself"<br>
   <a href="https://discord.gg/H8h8scsxtH">&gt; His Discord</a>
 </div>
 
 <div style="display: inline-block; vertical-align: top; width: 48%;">
   <h3>🎨 Art By Kennaness</h3>
-<img src="imgs/Untitled1700_20250212015725.png" alt="Ada" height="200"><br>
+<img src="imgs/Kennaness.png" alt="Ada" height="200"><br>
   "When Will I Get My Isekai"<br>
   <a href="https://bsky.app/profile/kennaness.bsky.social">&gt; Her Bluesky</a>
 </div>
@@ -43,7 +44,7 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 
 
-(Note, there are many comments all around; you'll see as time continued they decreased in quality and quantity. I plan on adding more comments again at a later time, but I currently have other projects I would like to focus on! There are a few functional updates which will come later, but after SecureString is fixed, everything should be fine to use in production!)
+(Note, there are many comments all around; you'll see as time continued they decreased in quality and quantity. I plan on adding more comments again at a later time, but I currently have other projects I would like to focus on! Everything should be fine to use in production!)
 
 
 ## What's Included?
@@ -106,16 +107,29 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 #### The Following Are Needed To Use All Of Pariah Cybersecurity:
 
 - BouncyCastle.NetCore
+
 - Ceras
+
 - k4os.Compression.LZ4
-  - Konscious.Security.Cryptography.Argon2
+
+ - Konscious.Security.Cryptography.Argon2
+
 - Newtonsoft.Json
+
 - Parquet.Net
+
+- EasyCompressor.LZ4
+
+- Data.HashFunction.Blake3
+
+- System.Data.HashFunction.Interfaces
+
 
 
 ## Changes, Fixes And Future Developments
 
-- [ ] Changing SecureString to use a custom char[] or byte[] based system (The current SecureString has a length limit, immediate fix needed)
+- [X] Changing SecureString to use a custom char[] or byte[] based system (The current SecureString has a length limit, immediate fix needed)
+- [ ] Fix Pack and Unpack File (Not too important since I can use the AESmethod for now, I might outsource help here )
 - [ ] Readding one of the disabled signatures to the account with session system (Should still be secure without)
 - [ ] Package Dependencies Into Singular DLL
 - [ ] Adding more graceful error handling (Ha, like that's happening)
@@ -124,7 +138,7 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 
 ## Special Thanks
 
-- To Kennaness for helping out between making art, hearing my code crash outs and being my goddess
+- To Kennaness for helping out between making art, hearing my code crash outs and being my development goddess
 - My friends for supporting me through the development process
 - The Walker Industries' community on Discord for their support
 
