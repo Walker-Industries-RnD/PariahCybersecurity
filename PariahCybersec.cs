@@ -1,40 +1,22 @@
-﻿using System.Security;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
-using System.Linq;
-using SecureStringPlus; //More secure strings
 using Walker.Crypto;
-using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
-using Org.BouncyCastle.Crypto.Generators;
-using Org.BouncyCastle.Crypto.Parameters;
 using static Pariah_Cybersecurity.DataHandler.SaltAndHashing;
 using JObject = Newtonsoft.Json.Linq.JObject;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
-using JToken = Newtonsoft.Json.Linq.JToken;
 using Konscious.Security.Cryptography;
-using Parquet.Schema;
-using Parquet.Serialization;
 using File = System.IO.File;
 using System.Text.Json;
 using System.Reflection;
 using Newtonsoft.Json.Linq;
-using System.Globalization;
-
 using System.Runtime.InteropServices;
 using System.Diagnostics;
-using static NBitcoin.WalletPolicies.MiniscriptNode;
-using NBitcoin;
-using System.IO;
-using Org.BouncyCastle.Asn1.Mozilla;
-using static NBitcoin.WalletPolicies.MiniscriptNode.ParameterRequirement;
-using Org.BouncyCastle.Asn1.Crmf;
 using static Walker.Crypto.SimpleAESEncryption;
-using static Pariah_Cybersecurity.DataHandler.AccountsWithSessions;
-using static Pariah_Cybersecurity.EasyPQC;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 
+using WISecureData;
+
+using SecureData = WISecureData.SecureData;
 
 
 //We no longer use SimpleAESEncryption because it does not adhere to AES256
@@ -161,7 +143,7 @@ namespace Pariah_Cybersecurity
                     var file = await FileAsync.ReadAllBytes(finalPathLocation); // Remember the bytes are already JSON  
 
                     // Deserialize the byte array into a JObject  
-                    var data = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(file));
+                    var data = await BinaryConverter.NCByteArrayToObjectAsync<JObject>(file);
 
                     PariahJSON pariahJSON = new PariahJSON(Filename, FileLocation, data);
 
@@ -175,16 +157,16 @@ namespace Pariah_Cybersecurity
 
             //Add conditionals later(?)
 
-            public static async Task<PariahJSON> AddToJson<T>(PariahJSON JsonData, string dataName, object data, SecureString? Key)
+            public static async Task<PariahJSON> AddToJson<T>(PariahJSON JsonData, string dataName, object data, SecureData? Key)
             {
                 JObject editedData = JsonData.Data;
 
                 if (Key == null)
                 {
-                    Key = "skibidi".ToSecureString(true);
+                    Key = "skibidi".ToSecureData();
                 }
 
-                var newJsonData = await DataEncryptions.PackData<T>(data, Key);
+                var newJsonData = await DataEncryptions.PackData<T>(data, (SecureData)Key);
 
                 editedData.Add(dataName, newJsonData);
 
@@ -205,7 +187,7 @@ namespace Pariah_Cybersecurity
                 return finalPJ;
             }
 
-            public static async Task<PariahJSON> UpdateJson<T>(PariahJSON JsonData, string dataName, object data, SecureString? Key)
+            public static async Task<PariahJSON> UpdateJson<T>(PariahJSON JsonData, string dataName, object data, SecureData? Key)
             {
                 JObject editedData = JsonData.Data;
 
@@ -214,10 +196,10 @@ namespace Pariah_Cybersecurity
 
                 if (Key == null)
                 {
-                    Key = "skibidi".ToSecureString(true);
+                    Key = "skibidi".ToSecureData();
                 }
 
-                var newJsonData = await DataEncryptions.PackData<T>(data, Key);
+                var newJsonData = await DataEncryptions.PackData<T>(data, (SecureData)Key);
 
                 editedData.Add(dataName, newJsonData);
 
@@ -226,7 +208,7 @@ namespace Pariah_Cybersecurity
                 return finalPJ;
             }
 
-            public static async Task<object> GetVariable<T>(PariahJSON JsonData, string dataName, SecureString? Key)
+            public static async Task<object> GetVariable<T>(PariahJSON JsonData, string dataName, SecureData? Key)
             {
                 JObject editedData = JsonData.Data;
 
@@ -237,10 +219,10 @@ namespace Pariah_Cybersecurity
 
                 if (Key == null)
                 {
-                    Key = "skibidi".ToSecureString(true);
+                    Key = "skibidi".ToSecureData();
                 }
 
-                var returnObject = await DataEncryptions.UnpackData(item, Key);
+                var returnObject = await DataEncryptions.UnpackData(item, (SecureData)Key);
 
                 return returnObject;
             }
@@ -312,7 +294,7 @@ namespace Pariah_Cybersecurity
             {
                 private static readonly SecureRandom CryptoRandom = new SecureRandom();
 
-                public static async Task<PasswordCheckData> GeneratePasswordHashAsync(SecureString password, int iterations = 4, int saltByteSize = 64, int hashByteSize = 128)
+                public static async Task<PasswordCheckData> GeneratePasswordHashAsync(SecureData password, int iterations = 4, int saltByteSize = 64, int hashByteSize = 128)
                 {
                     return await Task.Run(async () =>
                     {
@@ -330,7 +312,7 @@ namespace Pariah_Cybersecurity
                     });
                 }
 
-                public static async Task<bool> ValidatePasswordAsync(SecureString password, PasswordCheckData passValues, int iterations = 4, int hashByteSize = 128)
+                public static async Task<bool> ValidatePasswordAsync(SecureData password, PasswordCheckData passValues, int iterations = 4, int hashByteSize = 128)
                 {
                     return await Task.Run(async () =>
                     {
@@ -346,7 +328,7 @@ namespace Pariah_Cybersecurity
                     });
                 }
 
-                private static async Task<byte[]> Argon2_GetHashAsync(SecureString password, byte[] salt, int iterations, int hashByteSize)
+                private static async Task<byte[]> Argon2_GetHashAsync(SecureData password, byte[] salt, int iterations, int hashByteSize)
                 {
                     return await Task.Run(() =>
                     {
@@ -396,7 +378,7 @@ namespace Pariah_Cybersecurity
                 IncludeFields = true
             };
 
-            public static async Task<string> PackData<T>(object data, SecureString Key)
+            public static async Task<string> PackData<T>(object data, SecureData Key)
             {
                 byte[] payloadBytes = await BinaryConverter.NCObjectToByteArrayAsync<T>((T)data);
                 var wrapper = (typeof(T).AssemblyQualifiedName!, payloadBytes);
@@ -409,7 +391,7 @@ namespace Pariah_Cybersecurity
                 return encrypted.ToString();
             }
 
-            public static async Task<object> UnpackData(string data, SecureString Key)
+            public static async Task<object> UnpackData(string data, SecureData Key)
             {
                 try
                 {
@@ -434,7 +416,7 @@ namespace Pariah_Cybersecurity
                                    BindingFlags.Public | BindingFlags.Static)!
                         .MakeGenericMethod(type);
 
-                    var task = (Task)method.Invoke(null, new object[] { payload, CancellationToken.None })!;
+                    var task = (Task)method.Invoke(null, new object[] { payload, null, CancellationToken.None })!;
                     await task.ConfigureAwait(false);
 
                     return task.GetType().GetProperty("Result")!.GetValue(task)!;
@@ -470,10 +452,10 @@ namespace Pariah_Cybersecurity
             public class PublicKeyFileInit
             {
                 public string SecretName { get; internal set; }
-                public SecureString Value { get; internal set; }
-                public SecureString? SecretPath { get; internal set; } //Do NOT include a name here
+                public SecureData Value { get; internal set; }
+                public SecureData? SecretPath { get; internal set; } //Do NOT include a name here
 
-                public PublicKeyFileInit(string secretName, SecureString? secretPath, SecureString value)
+                public PublicKeyFileInit(string secretName, SecureData? secretPath, SecureData value)
                 {
                     SecretName = secretName;
                     SecretPath = secretPath;
@@ -486,7 +468,7 @@ namespace Pariah_Cybersecurity
             //PublicKeyFiles = string Name, string Keyfile Location (Encrypted?)
             //Account = Just use Accounts.CreateUser/Login
 
-            //PublicDecryptKey should be a SecureString as an input, not a String
+            //PublicDecryptKey should be a SecureData as an input, not a String
             public async static Task CreateBank(string BankDirectory, string BankName, List<PublicKeyFileInit>? PublicKeys, string? PublicDecryptKey)
             {
                 //You can (and should) generally create PublicDecryptKey as null, unless you are making a software specific "public" key (which might be better just being a secret but I digress
@@ -498,7 +480,7 @@ namespace Pariah_Cybersecurity
                     PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
                 }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = PublicDecryptKey.ToSecureData();
 
                 //Now we see if a Bank with the same name exists at the path we selected
 
@@ -522,11 +504,11 @@ namespace Pariah_Cybersecurity
                     {
                         //First create the variables 
 
-                        SecureString savepath = BankDirectory.ToSecureString(true);
+                        SecureData savepath = BankDirectory.ToSecureData();
 
                         if (item.SecretPath != null)
                         {
-                            savepath = item.SecretPath;
+                            savepath = (SecureData)item.SecretPath;
                         }
 
                         var finalPath = SimpleAESEncryption.Encrypt(savepath.ConvertToString(), keyToUseAsPassword);
@@ -582,7 +564,7 @@ namespace Pariah_Cybersecurity
             }
 
             //Gets a public secret by finding the path within the secret bank, going to the file and decrypting the value, add SecretDecryptKey to everything
-            public static async Task<SecureString> GetPublicSecret(string BankDirectory, string BankName, string PublicSecretName, string? PublicDecryptKey, string? SecretDecryptKey)
+            public static async Task<SecureData> GetPublicSecret(string BankDirectory, string BankName, string PublicSecretName, string? PublicDecryptKey, string? SecretDecryptKey)
             {
                 //First up let's set PublicDecryptKey
                 if (PublicDecryptKey == null)
@@ -595,8 +577,8 @@ namespace Pariah_Cybersecurity
                     SecretDecryptKey = PublicDecryptKey;
                 }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
-                var keyToUseAsSecretPassword = SecretDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = PublicDecryptKey.ToSecureData();
+                var keyToUseAsSecretPassword = SecretDecryptKey.ToSecureData();
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -647,7 +629,7 @@ namespace Pariah_Cybersecurity
                     PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
                 }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = PublicDecryptKey.ToSecureData();
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -699,7 +681,7 @@ namespace Pariah_Cybersecurity
                     PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
                 }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = PublicDecryptKey.ToSecureData();
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -708,11 +690,11 @@ namespace Pariah_Cybersecurity
                 //Now to add the actual value to the main file
 
 
-                SecureString savepath = BankDirectory.ToSecureString(true);
+                SecureData savepath = BankDirectory.ToSecureData();
 
                 if (PublicSecret.SecretPath != null)
                 {
-                    savepath = PublicSecret.SecretPath;
+                    savepath = (SecureData)PublicSecret.SecretPath;
                 }
 
                 var finalPath = SimpleAESEncryption.Encrypt(savepath.ConvertToString(), keyToUseAsPassword);
@@ -752,7 +734,7 @@ namespace Pariah_Cybersecurity
                     PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); // Use motherboard serial as default key
                 }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = PublicDecryptKey.ToSecureData();
 
                 //Load the main bank JSON
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
@@ -802,7 +784,7 @@ namespace Pariah_Cybersecurity
                     PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); // Use motherboard serial as default key
                 }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = PublicDecryptKey.ToSecureData();
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -820,7 +802,7 @@ namespace Pariah_Cybersecurity
             }
 
             //Enter a value into newSalt if you want to reset pneumentations to 0 with a new salt
-            public static async Task<SecureString> RotateSecret(string BankDirectory, string BankName, string PublicSecretName, string? salt, string? PublicDecryptKey, string? newSalt)
+            public static async Task<SecureData> RotateSecret(string BankDirectory, string BankName, string PublicSecretName, string? salt, string? PublicDecryptKey, string? newSalt)
             {
                 var secretToRotate = await GetPublicSecret(BankDirectory, BankName, PublicSecretName, PublicDecryptKey, PublicDecryptKey);
 
@@ -831,7 +813,7 @@ namespace Pariah_Cybersecurity
                     PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
                 }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = PublicDecryptKey.ToSecureData();
 
                 if (salt == null && newSalt == null)
                 {
@@ -884,19 +866,19 @@ namespace Pariah_Cybersecurity
 
                 await JSONDataHandler.SaveJson(jsonWithUpdatedPneu);
 
-                return secretRotated.ToSecureString(true);
+                return secretRotated.ToSecureData();
 
             }
 
             //Migrate is a WIP function which should NOT be used yet
-            public static async Task MigratePublicSecrets(string BankDirectory, string BankName, Dictionary<string, (SecureString? OldPassword, SecureString? NewPassword, string NewPath)> secretMigrations, string newBankDirPath,
-                string? NewFileDirectoryPath, SecureString OldPublicDecryptKey, SecureString? NewPublicDecryptKey)
+            public static async Task MigratePublicSecrets(string BankDirectory, string BankName, Dictionary<string, (SecureData? OldPassword, SecureData? NewPassword, string NewPath)> secretMigrations, string newBankDirPath,
+                string? NewFileDirectoryPath, SecureData OldPublicDecryptKey, SecureData? NewPublicDecryptKey)
             {
                 // Use default key if none provided
                 if (NewPublicDecryptKey == null)
                 {
                     var temp = await DeviceIdentifier.GetBoardSerialAsync();
-                    NewPublicDecryptKey = temp.ToSecureString();
+                    NewPublicDecryptKey = temp.ToSecureData();
                 }
 
                 // Load main bank file using OldPublicDecryptKey
@@ -932,7 +914,7 @@ namespace Pariah_Cybersecurity
                     }
 
                     //Let's get the file with the stuff we need
-                    var decryptedPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(secretFile.SecretPath), oldPassword).ConvertToString();
+                    var decryptedPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(secretFile.SecretPath), (SecureData)oldPassword).ConvertToString();
                     var jsonWithKey = await JSONDataHandler.LoadJsonFile(secretFile.SecretName, decryptedPath);
 
                     // Decrypt the actual values
@@ -940,16 +922,16 @@ namespace Pariah_Cybersecurity
                     var encryptedPneumentationsStr = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Pneumentations", oldPassword);
 
                     //Remember, the strings we saved are SimpleAESEncryption.AESEncryptedText converted to text with the .ToString() method
-                    var decryptedSecretValue = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(encryptedSecretValueStr), oldPassword);
-                    var decryptedPneumentations = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(encryptedPneumentationsStr), oldPassword);
+                    var decryptedSecretValue = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(encryptedSecretValueStr), (SecureData)oldPassword);
+                    var decryptedPneumentations = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(encryptedPneumentationsStr), (SecureData)oldPassword);
 
                     // Parse decrypted values
                     string secretString = decryptedSecretValue.ConvertToString();
                     int pneumentationCount = int.Parse(decryptedPneumentations.ConvertToString());
 
                     // Encrypt with new password
-                    var newEncryptedSecret = SimpleAESEncryption.Encrypt(secretString, newPassword).ToString();
-                    var newEncryptedPneumentation = SimpleAESEncryption.Encrypt(pneumentationCount.ToString(), newPassword).ToString();
+                    var newEncryptedSecret = SimpleAESEncryption.Encrypt(secretString, (SecureData)newPassword).ToString();
+                    var newEncryptedPneumentation = SimpleAESEncryption.Encrypt(pneumentationCount.ToString(), (SecureData)newPassword).ToString();
 
                     // If NewPath is empty, we use newBankDirectoryPath
                     var newSavePath = newPath ?? NewFileDirectoryPath; //WE LOVE ?? CHECKS
@@ -972,14 +954,14 @@ namespace Pariah_Cybersecurity
 
                     // Update the path in bank
 
-                    var newEncryptedPath = SimpleAESEncryption.Encrypt(newSavePath, newPassword);
-                    secretFile.SecretPath = SimpleAESEncryption.Encrypt(newEncryptedPath.ToString(), newPassword).ToString();
+                    var newEncryptedPath = SimpleAESEncryption.Encrypt(newSavePath, (SecureData)newPassword);
+                    secretFile.SecretPath = SimpleAESEncryption.Encrypt(newEncryptedPath.ToString(), (SecureData)newPassword).ToString();
 
                 }
 
                 // Save updated bank as a new bank in a new location
                 var bankName = loadedJson.FileName;
-                await CreateBank(newBankDirPath, bankName, null, NewPublicDecryptKey.ConvertToString());
+                await CreateBank(newBankDirPath, bankName, null, NewPublicDecryptKey.ToString());
                 var fileToUserp = await JSONDataHandler.LoadJsonFile(BankName, newBankDirPath);
                 var finalizedFile = await JSONDataHandler.UpdateJson<List<PublicKeyFile>>(fileToUserp, "PublicSecrets", listOfPublicKeyFile, NewPublicDecryptKey);
 
@@ -1067,7 +1049,7 @@ namespace Pariah_Cybersecurity
 
             public static class SecuritySettings
             {
-                public static SecureString PublicKey { get; private set; }
+                public static SecureData PublicKey { get; private set; }
                 public static double ExpiryDuration { get; private set; }
                 public static double TrustedExpiryDuration { get; private set; }
                 public static int FailRecoveryCheck { get; private set; }
@@ -1076,17 +1058,17 @@ namespace Pariah_Cybersecurity
                 // Static constructor
                 static SecuritySettings()
                 {
-                    PublicKey = "Default".ToSecureString(true);
+                    PublicKey = "Default".ToSecureData();
                     ExpiryDuration = 540;
                     TrustedExpiryDuration = 20160;
                     FailRecoveryCheck = 5;
                     TimeToNextRecovery = 20;
                 }
 
-                public static void SetPublicKey(string newKey, bool makeReadOnly = true)
+                public static void SetPublicKey(string newKey)
                 {
-                    PublicKey.Dispose(); // Don't forget to clean up old SecureString!
-                    PublicKey = newKey.ToSecureString(makeReadOnly);
+                    PublicKey.Dispose(); // Don't forget to clean up old SecureData!
+                    PublicKey = newKey.ToSecureData();
                 }
 
                 public static void SetExpiryDuration(double minutes)
@@ -1233,7 +1215,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task<DirectoryData> GetPaths(SecureString identifier, string software, string author,
+            public async Task<DirectoryData> GetPaths(SecureData identifier, string software, string author,
                 string programName, string serviceParent)
             {
 
@@ -1259,7 +1241,7 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public async Task<bool> CheckMainPathValidity(DirectoryData data, SecureString? PublicKey)
+            public async Task<bool> CheckMainPathValidity(DirectoryData data, SecureData? PublicKey)
             {
                 try
                 {
@@ -1285,7 +1267,7 @@ namespace Pariah_Cybersecurity
                 }
             }
 
-            public async Task<bool> ValidateProgram(DirectoryData data, string programName, SecureString? PublicKey)
+            public async Task<bool> ValidateProgram(DirectoryData data, string programName, SecureData? PublicKey)
             {
 
                 var programPath = await GetExecutablePathAsync(programName);
@@ -1299,14 +1281,14 @@ namespace Pariah_Cybersecurity
 
 
 
-            public async Task<SecureString> CreateNewSystem(string username, SecureString identifier, SecureString password, string software, string author, 
-                string exePath, string serviceParent, int tiers, SecureString? PublicKey)
+            public async Task<SecureData> CreateNewSystem(string username, SecureData identifier, SecureData password, string software, string author, 
+                string exePath, string serviceParent, int tiers, SecureData? PublicKey)
             {
 
                 if (PublicKey == null)
                 {
                     var temp = await DeviceIdentifier.GetBoardSerialAsync();
-                    PublicKey = temp.ToSecureString(true);
+                    PublicKey = temp.ToSecureData();
                 }
 
 
@@ -1374,7 +1356,7 @@ namespace Pariah_Cybersecurity
 
                 //Secret bank for Gun Gale Online
 
-                await SecretManager.CreateBank(userSharedResources, "SecretBank", null, PublicKey.ConvertToString());
+                await SecretManager.CreateBank(userSharedResources, "SecretBank", null, PublicKey.ToString());
 
                 //Manasger of Permissions and Allowed Software
 
@@ -1382,11 +1364,11 @@ namespace Pariah_Cybersecurity
                 // while the director has access to director, manager, and employee level data. Each higher tier inherits
                 // permissions from the lower ones, like a hierarchy of access control.
 
-                Dictionary<string, SecureString> tiervals = new Dictionary<string, SecureString>();
+                Dictionary<string, SecureData> tiervals = new Dictionary<string, SecureData>();
 
                 for (int i = 0; i < tiers; i++)
                 {
-                    var tierPass = PasswordGenerator.GeneratePassword(32, true, true, true, true).ToSecureString(true);
+                    var tierPass = PasswordGenerator.GeneratePassword(32, true, true, true, true).ToSecureData();
                     tiervals.Add(i.ToString(), tierPass);
                 }
 
@@ -1402,7 +1384,7 @@ namespace Pariah_Cybersecurity
                     var itemval = item.Value.ConvertToString();
 
 
-                    var encTierPass = SimpleAESEncryption.Encrypt(item.Value.ConvertToString(), PublicKey).ToString();
+                    var encTierPass = SimpleAESEncryption.Encrypt(item.Value.ConvertToString(), (SecureData)PublicKey).ToString();
                     var signedTierPass = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Value.ConvertToString());
                     var signedEncTier = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Key);
 
@@ -1432,9 +1414,9 @@ namespace Pariah_Cybersecurity
 
                 var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
 
-                var jsonWithLoadedAllowedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", new Dictionary<string, SecureString>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonWithLoadedAllowedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", new Dictionary<string, SecureData>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
-                var jsonWithBlacklistedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(jsonWithLoadedAllowedPrograms, "Blacklisted Programs", new Dictionary<string, SecureString>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonWithBlacklistedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(jsonWithLoadedAllowedPrograms, "Blacklisted Programs", new Dictionary<string, SecureData>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
 
 
@@ -1460,7 +1442,7 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public async Task<SecureString> CreateNewApp(string username, SecureString password, string Directory, DirectoryData directories, string tier, SecureString? PublicKey)
+            public async Task<SecureData> CreateNewApp(string username, SecureData password, string Directory, DirectoryData directories, string tier, SecureData? PublicKey)
             {
 
                 var properDirectoryCheck = await CheckMainPathValidity(directories, PublicKey);
@@ -1469,18 +1451,18 @@ namespace Pariah_Cybersecurity
 
                 var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
 
-                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureString>) await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>) await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 //Should still be secure, can be better
 
-                var isProgramBlacklisted = jsonWithBlacklistedPrograms.ContainsKey(directories.Software) || jsonWithBlacklistedPrograms.ContainsValue(directories.ExePath.ToSecureString(true));
+                var isProgramBlacklisted = jsonWithBlacklistedPrograms.ContainsKey(directories.Software) || jsonWithBlacklistedPrograms.ContainsValue(directories.ExePath.ToSecureData());
 
                 if (isProgramBlacklisted)
                 {
                     throw new Exception("This program is blacklisted.");
                 }
 
-                var allowedProgramsList = (Dictionary<string, SecureString>) await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var allowedProgramsList = (Dictionary<string, SecureData>) await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
 
                 var jsonToHaveTiers = await JSONDataHandler.LoadJsonFile("Data Tiers", mainServicePath);
@@ -1501,7 +1483,7 @@ namespace Pariah_Cybersecurity
 
                 var itemval = jsonWithTiers[tier];
 
-                var decTierPass = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(itemval.EncryptedTierPass), PublicKey).ToString();
+                var decTierPass = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(itemval.EncryptedTierPass), (SecureData)PublicKey).ToString();
 
                 var signedTierPass = itemval.SignedTierPass;
                 var signedEncTier = itemval.SignedEncryptedTier;
@@ -1526,11 +1508,11 @@ namespace Pariah_Cybersecurity
                     throw new Exception("The tier information does not match the signature.");
                 }
 
-                var encProgramTier = SimpleAESEncryption.Encrypt(tier, PublicKey).ToString().ToSecureString();
+                var encProgramTier = SimpleAESEncryption.Encrypt(tier, (SecureData)PublicKey).ToString().ToSecureData();
 
                 allowedProgramsList.Add(directories.Software, encProgramTier);
 
-                var JsonWithUpdatedAppsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey);
+                var JsonWithUpdatedAppsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey);
 
                 await JSONDataHandler.SaveJson(JsonWithUpdatedAppsList);
 
@@ -1543,13 +1525,13 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public async Task AddToBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
+            public async Task AddToBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
             {
                 await ValidateSession(connSession, PublicKey);
 
                 var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
 
-                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureString>)await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 bool varExists = false;
 
@@ -1571,20 +1553,20 @@ namespace Pariah_Cybersecurity
                 }
 
 
-                jsonWithBlacklistedPrograms.Add(softwareName, mainServicePath.ToSecureString()); 
+                jsonWithBlacklistedPrograms.Add(softwareName, mainServicePath.ToSecureData()); 
 
-                var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 await JSONDataHandler.SaveJson(jsonToSave);
             }
 
-            public async Task RemoveFromBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
+            public async Task RemoveFromBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
             {
                 await ValidateSession(connSession, PublicKey);
 
                 var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
 
-                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureString>)await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 bool varExists = false;
 
@@ -1608,19 +1590,19 @@ namespace Pariah_Cybersecurity
 
                 jsonWithBlacklistedPrograms.Remove(softwareName);
 
-                var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 await JSONDataHandler.SaveJson(jsonToSave);
             }
 
 
-            public async Task RemoveAccount(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
+            public async Task RemoveAccount(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
             {
                 await ValidateSession(connSession, PublicKey);
 
                 var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
 
-                var allowedProgramsList = (Dictionary<string, SecureString>)await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var allowedProgramsList = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
 
                 bool varExists = false;
@@ -1643,13 +1625,13 @@ namespace Pariah_Cybersecurity
 
                 allowedProgramsList.Remove(softwareName);
 
-                var updatedProgramsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var updatedProgramsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 await JSONDataHandler.SaveJson(updatedProgramsList);
 
             }
 
-            public async Task VerifySessionIntegrity(DirectoryData data, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
+            public async Task VerifySessionIntegrity(DirectoryData data, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
             {
 
                 var mpValidity = await CheckMainPathValidity(data, PublicKey);
@@ -1716,19 +1698,19 @@ namespace Pariah_Cybersecurity
             public class ConnectedSessionReturn
             {
 
-                public SecureString Username { get; private set; }
-                public SecureString SessionKey { get; private set; }
-                public SecureString SessionID { get; private set; }
+                public SecureData Username { get; private set; }
+                public SecureData SessionKey { get; private set; }
+                public SecureData SessionID { get; private set; }
 
-                public SecureString Directory { get; private set; }
+                public SecureData Directory { get; private set; }
 
                 public ConnectedSessionReturn() { }
 
-                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureString directory)
+                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureData directory)
                 {
-                    Username = username.ToSecureString(true);
-                    SessionKey = sessionKey.ToSecureString(true);
-                    SessionID = sessionID.ToSecureString(true);
+                    Username = username.ToSecureData();
+                    SessionKey = sessionKey.ToSecureData();
+                    SessionID = sessionID.ToSecureData();
                     Directory = directory;
                 }
             }
@@ -1736,11 +1718,11 @@ namespace Pariah_Cybersecurity
             public class ReturnCreateUser
             {
                 public ConnectedSessionReturn sessionReturn { get; private set; }
-                public SecureString RecoveryKey { get; private set; }
+                public SecureData RecoveryKey { get; private set; }
 
                 public ReturnCreateUser() { }
 
-                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureString recoveryKey)
+                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureData recoveryKey)
                 {
                     this.sessionReturn = sessionReturn;
                     RecoveryKey = recoveryKey;
@@ -1800,7 +1782,7 @@ namespace Pariah_Cybersecurity
                 await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
             }
 
-            public async Task<SecureString> CreateUser(string username, SecureString password, string Directory) //Return recovery key  
+            public async Task<SecureData> CreateUser(string username, SecureData password, string Directory) //Return recovery key  
             {
                 // 1. Create base user representation  
                 // 2. Save salted/hashed password  
@@ -1818,9 +1800,9 @@ namespace Pariah_Cybersecurity
 
                 var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
                 var encryptedrecoverable = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
 
@@ -1840,7 +1822,7 @@ namespace Pariah_Cybersecurity
                 return recoverykey;
             }
 
-            public async Task<SecureString> LoginCore(string username, string Directory, SecureString password) //Return file encryption key  
+            public async Task<SecureData> LoginCore(string username, string Directory, SecureData password) //Return file encryption key  
             {
                 try
                 {
@@ -1898,7 +1880,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task<(SecureString, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureString password, bool IsTrusted) //Return file encryption key  
+            public async Task<(SecureData, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureData password, bool IsTrusted) //Return file encryption key  
             {
                 //We can actually use the same Login Logic from the generic "accounts" system!
 
@@ -1947,14 +1929,14 @@ namespace Pariah_Cybersecurity
 
                 await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
 
-                var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureString(true));
+                var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureData());
 
                 return (aesKey, connReturnVals);
 
 
             }
 
-            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
                 var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
@@ -2046,7 +2028,7 @@ namespace Pariah_Cybersecurity
                 }
             }
 
-            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
 
                 await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
@@ -2081,7 +2063,7 @@ namespace Pariah_Cybersecurity
             }
             //Remember to wipe the connSession and decryptKey
 
-            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
 
 
@@ -2112,7 +2094,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureString decryptKey, SecureString NewPassword, SecureString RecoveryPass)
+            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureData decryptKey, SecureData NewPassword, SecureData RecoveryPass)
             {
 
                 await ValidateSession(connSession, decryptKey);
@@ -2218,9 +2200,9 @@ namespace Pariah_Cybersecurity
 
                 matchedUser.Password = await PasswordHandler.GeneratePasswordHashAsync(NewPassword);
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true); //Return this
+                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData(); //Return this
 
                 matchedUser.RecoveryDataKey = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
 
@@ -2256,7 +2238,7 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
                 var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
 
@@ -2294,11 +2276,11 @@ namespace Pariah_Cybersecurity
         public class Accounts
         {
 
-            internal SecureString PublicKey = "Default".ToSecureString(leaveOriginal: true);
+            internal SecureData PublicKey = "Default".ToSecureData();
 
             internal void ChangePublicKey(string NewVal)
             {
-                PublicKey = NewVal.ToSecureString(true);
+                PublicKey = NewVal.ToSecureData();
             }
 
             public class AccountData
@@ -2326,21 +2308,19 @@ namespace Pariah_Cybersecurity
                 // Initialize an empty list of AccountData
                 List<AccountData> accountsList = new List<AccountData>();
 
-                var encryptedList = await DataEncryptions.PackData<List<AccountData>>(accountsList, PublicKey);
-
                 // Use your JSONDataHandler to create the file
                 await JSONDataHandler.CreateJsonFile("Users", directory, new JObject { });
 
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
 
-                var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", encryptedList, PublicKey);
+                var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", accountsList, PublicKey);
 
                 // Insert your own logic below! Just be sure to change JsonWithData to whatever variable should be there now
 
                 await JSONDataHandler.SaveJson(jsonWithData);
             }
 
-            public async Task<SecureString> CreateUser(string username, SecureString password, string Directory) //Return recovery key  
+            public async Task<SecureData> CreateUser(string username, SecureData password, string Directory) //Return recovery key  
             {
                 // 1. Create base user representation  
                 // 2. Save salted/hashed password  
@@ -2358,9 +2338,9 @@ namespace Pariah_Cybersecurity
 
                 var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
                 var encryptedrecoverable = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), recoverykey).ToString();
 
@@ -2378,7 +2358,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task<SecureString> LoginUser(string username, string Directory, SecureString password) //Return file encryption key  
+            public async Task<SecureData> LoginUser(string username, string Directory, SecureData password) //Return file encryption key  
             {
                 try
                 {
@@ -2435,7 +2415,7 @@ namespace Pariah_Cybersecurity
                 }
             }
 
-            public async Task<SecureString> ResetPassword(string username, string Directory, SecureString newpassword, SecureString RecoveryPass)
+            public async Task<SecureData> ResetPassword(string username, string Directory, SecureData newpassword, SecureData RecoveryPass)
             {
                 var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
 
@@ -2467,7 +2447,7 @@ namespace Pariah_Cybersecurity
 
                         var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(newpassword);
 
-                        SecureString newencryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                        SecureData newencryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
                         var encryptedrecoverable = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), newencryptionkey).ToString();
 
@@ -2507,7 +2487,7 @@ namespace Pariah_Cybersecurity
 
             }
 
-            //To "logout", just clear the SecureString return from Login User
+            //To "logout", just clear the SecureData return from Login User
 
 
 
@@ -2547,19 +2527,19 @@ namespace Pariah_Cybersecurity
             public class ConnectedSessionReturn
             {
 
-                public SecureString Username { get; private set; }
-                public SecureString SessionKey { get; private set; }
-                public SecureString SessionID { get; private set; }
+                public SecureData Username { get; private set; }
+                public SecureData SessionKey { get; private set; }
+                public SecureData SessionID { get; private set; }
 
-                public SecureString Directory { get; private set; }
+                public SecureData Directory { get; private set; }
 
                 public ConnectedSessionReturn() { }
 
-                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureString directory)
+                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureData directory)
                 {
-                    Username = username.ToSecureString(true);
-                    SessionKey = sessionKey.ToSecureString(true);
-                    SessionID = sessionID.ToSecureString(true);
+                    Username = username.ToSecureData();
+                    SessionKey = sessionKey.ToSecureData();
+                    SessionID = sessionID.ToSecureData();
                     Directory = directory;
                 }
             }
@@ -2567,11 +2547,11 @@ namespace Pariah_Cybersecurity
             public class ReturnCreateUser
             {
                 public ConnectedSessionReturn sessionReturn { get; private set; }
-                public SecureString RecoveryKey { get; private set; }
+                public SecureData RecoveryKey { get; private set; }
 
                 public ReturnCreateUser() { }
 
-                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureString recoveryKey)
+                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureData recoveryKey)
                 {
                     this.sessionReturn = sessionReturn;
                     RecoveryKey = recoveryKey;
@@ -2593,7 +2573,7 @@ namespace Pariah_Cybersecurity
             //Decrypt all data and reencrypt it using the new key
             public static class SecuritySettings
             {
-                public static SecureString PublicKey { get; private set; }
+                public static SecureData PublicKey { get; private set; }
                 public static double ExpiryDuration { get; private set; }
                 public static double TrustedExpiryDuration { get; private set; }
                 public static int FailRecoveryCheck { get; private set; }
@@ -2602,17 +2582,17 @@ namespace Pariah_Cybersecurity
                 // Static constructor
                 static SecuritySettings()
                 {
-                    PublicKey = "Default".ToSecureString(true);
+                    PublicKey = "Default".ToSecureData();
                     ExpiryDuration = 540;
                     TrustedExpiryDuration = 20160;
                     FailRecoveryCheck = 5;
                     TimeToNextRecovery = 20;
                 }
 
-                public static void SetPublicKey(string newKey, bool makeReadOnly = true)
+                public static void SetPublicKey(string newKey)
                 {
-                    PublicKey.Dispose(); // Don't forget to clean up old SecureString!
-                    PublicKey = newKey.ToSecureString(makeReadOnly);
+                    PublicKey.Dispose(); // Don't forget to clean up old SecureData!
+                    PublicKey = newKey.ToSecureData();
                 }
 
                 public static void SetExpiryDuration(double minutes)
@@ -2680,7 +2660,7 @@ namespace Pariah_Cybersecurity
                 await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
             }
 
-            public async Task<SecureString> CreateUser(string username, SecureString password, string Directory) //Return recovery key  
+            public async Task<SecureData> CreateUser(string username, SecureData password, string Directory) //Return recovery key  
             {
                 // 1. Create base user representation  
                 // 2. Save salted/hashed password  
@@ -2698,9 +2678,9 @@ namespace Pariah_Cybersecurity
 
                 var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
                 var encryptedrecoverable = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
 
@@ -2720,7 +2700,7 @@ namespace Pariah_Cybersecurity
                 return recoverykey;
             }
 
-            private async Task<SecureString> LoginCore(string username, string Directory, SecureString password) //Return file encryption key  
+            private async Task<SecureData> LoginCore(string username, string Directory, SecureData password) //Return file encryption key  
             {
                 try
                 {
@@ -2779,7 +2759,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task<(SecureString, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureString password, bool IsTrusted) //Return file encryption key  
+            public async Task<(SecureData, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureData password, bool IsTrusted) //Return file encryption key  
             {
                 //We can actually use the same Login Logic from the generic "accounts" system!
 
@@ -2828,14 +2808,14 @@ namespace Pariah_Cybersecurity
 
                 await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
 
-                var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureString(true));
+                var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureData());
 
                 return (aesKey, connReturnVals);
 
 
             }
 
-            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
                 var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
@@ -2927,7 +2907,7 @@ namespace Pariah_Cybersecurity
                 }
             }
 
-            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
 
                 await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
@@ -2962,7 +2942,7 @@ namespace Pariah_Cybersecurity
             }
             //Remember to wipe the connSession and decryptKey
 
-            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
 
 
@@ -2993,7 +2973,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureString decryptKey, SecureString NewPassword, SecureString RecoveryPass)
+            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureData decryptKey, SecureData NewPassword, SecureData RecoveryPass)
             {
 
                 await ValidateSession(connSession, decryptKey);
@@ -3099,9 +3079,9 @@ namespace Pariah_Cybersecurity
 
                 matchedUser.Password = await PasswordHandler.GeneratePasswordHashAsync(NewPassword);
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true); //Return this
+                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData(); //Return this
 
                 matchedUser.RecoveryDataKey = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
 
@@ -3137,7 +3117,7 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
                 var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
 
@@ -3162,7 +3142,7 @@ namespace Pariah_Cybersecurity
 
     }
 
-
+    //Unused for a 
     public static class Utilities
     {
         public static string CreateUUID()

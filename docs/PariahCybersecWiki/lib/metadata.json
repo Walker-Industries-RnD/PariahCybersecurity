@@ -1,0 +1,420 @@
+{
+  "vaultName": "Pariah Cybersecurity Wiki",
+  "lastExport": 1746734468337,
+  "pluginVersion": "1.8.01",
+  "validBodyClasses": "publish css-settings-manager theme-light show-inline-title show-ribbon",
+  "useCustomHeadContent": false,
+  "useCustomFavicon": true,
+  "files": [
+    "BinaryConverter/Examples/BinaryConverterTest.FromByte.md",
+    "BinaryConverter/Examples/BinaryConverterTest.TestObjectToByteArrayAsync.md",
+    "BinaryConverter/Examples/BinaryConverterTest.ToByte.md",
+    "BinaryConverter/BinaryConverter.md",
+    "DataHandler/Examples/PariahCybersecTest.AccountsTest.md",
+    "DataHandler/Examples/PariahCybersecTest.AccountsWithSessionsTest.md",
+    "DataHandler/Examples/PariahCybersecTest.DataRequestTest.md",
+    "DataHandler/Functions/DataHandler.Accounts.md",
+    "DataHandler/Functions/DataHandler.AccountsWithSessions.md",
+    "DataHandler/Functions/DataHandler.DataEncryptions.md",
+    "DataHandler/Functions/DataHandler.DataRequest.md",
+    "DataHandler/Functions/DataHandler.DeviceIdentifier.md",
+    "DataHandler/Functions/DataHandler.JSONDataHandler.md",
+    "DataHandler/Functions/DataHandler.SaltAndHashing.md",
+    "DataHandler/Functions/DataHandler.SecretManager.md",
+    "DataHandler/DataHandler.md",
+    "EasyPQC/Examples/EasyPQCTest.FileTest.md",
+    "EasyPQC/Examples/EasyPQCTest.KeysMsgTest.md",
+    "EasyPQC/Examples/EasyPQCTest.KeysTest.md",
+    "EasyPQC/Examples/EasyPQCTest.RotateTest.md",
+    "EasyPQC/Examples/EasyPQCTest.SignatureTest.md",
+    "EasyPQC/Functions/EasyPQC.FileOperations.md",
+    "EasyPQC/Functions/EasyPQC.Keys.md",
+    "EasyPQC/Functions/EasyPQC.Rotation.md",
+    "EasyPQC/Functions/EasyPQC.Signatures.md",
+    "EasyPQC/EasyPQC.md",
+    "Look At These/Find The Right Solution For You!.md",
+    "Look At These/The Pariah's Codex of Autonomous Instruments.md",
+    "Look At These/The Pariah's Grimoire of Applied Functionality.md",
+    "PasswordGenerator/Functions/PasswordGenerator.GeneratePassword.md",
+    "PasswordGenerator/PasswordGenerator.md",
+    "Walker.Crypto/Examples/WalkerCryptoTest.AESFileEcryptorTest.md",
+    "Walker.Crypto/Examples/WalkerCryptoTest.SimpleAESEncryptionTest.md",
+    "Walker.Crypto/Examples/WalkerCryptoTest.WrongAESFilePasswordTest.md",
+    "Walker.Crypto/Functions/Walker.Crypto.AESFileEncryptor.md",
+    "Walker.Crypto/Functions/Walker.Crypto.AsyncAESEncryption.md",
+    "Walker.Crypto/Functions/Walker.Crypto.SimpleAESEncryption.md",
+    "Walker.Crypto/Walker.Crypto.md",
+    "Example Class Used Throughout Examples.md",
+    "General Directory Map.canvas",
+    "Understanding Secure Data.md",
+    "Welcome To Pariah Cybersecurity!.md",
+    "lib/fonts/94f2f163d4b698242fef.otf",
+    "lib/fonts/72505e6a122c6acd5471.woff2",
+    "lib/fonts/2d5198822ab091ce4305.woff2",
+    "lib/fonts/c8ba52b05a9ef10f4758.woff2",
+    "lib/fonts/cb10ffd7684cd9836a05.woff2",
+    "lib/fonts/b5f0f109bc88052d4000.woff2",
+    "lib/fonts/cbe0ae49c52c920fd563.woff2",
+    "lib/fonts/535a6cf662596b3bd6a6.woff2",
+    "lib/fonts/70cc7ff27245e82ad414.ttf",
+    "lib/fonts/454577c22304619db035.ttf",
+    "lib/fonts/52ac8f3034507f1d9e53.ttf",
+    "lib/fonts/05b618077343fbbd92b7.ttf",
+    "lib/fonts/4bb6ac751d1c5478ff3a.woff2",
+    "lib/media/6155340132a851f6089e.svg"
+  ],
+  "mainDependencies": [
+    "lib/fonts/94f2f163d4b698242fef.otf",
+    "lib/fonts/72505e6a122c6acd5471.woff2",
+    "lib/fonts/2d5198822ab091ce4305.woff2",
+    "lib/fonts/c8ba52b05a9ef10f4758.woff2",
+    "lib/fonts/cb10ffd7684cd9836a05.woff2",
+    "lib/fonts/b5f0f109bc88052d4000.woff2",
+    "lib/fonts/cbe0ae49c52c920fd563.woff2",
+    "lib/fonts/535a6cf662596b3bd6a6.woff2",
+    "lib/fonts/70cc7ff27245e82ad414.ttf",
+    "lib/fonts/454577c22304619db035.ttf",
+    "lib/fonts/52ac8f3034507f1d9e53.ttf",
+    "lib/fonts/05b618077343fbbd92b7.ttf",
+    "lib/fonts/4bb6ac751d1c5478ff3a.woff2",
+    "lib/media/6155340132a851f6089e.svg"
+  ],
+  "fileInfo": {
+    "BinaryConverter/Examples/BinaryConverterTest.FromByte.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 232,
+      "exportedPath": "BinaryConverter/Examples/BinaryConverterTest.FromByte.html",
+      "dependencies": []
+    },
+    "BinaryConverter/Examples/BinaryConverterTest.TestObjectToByteArrayAsync.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1620,
+      "exportedPath": "BinaryConverter/Examples/BinaryConverterTest.TestObjectToByteArrayAsync.html",
+      "dependencies": []
+    },
+    "BinaryConverter/Examples/BinaryConverterTest.ToByte.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 221,
+      "exportedPath": "BinaryConverter/Examples/BinaryConverterTest.ToByte.html",
+      "dependencies": []
+    },
+    "BinaryConverter/BinaryConverter.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1499,
+      "exportedPath": "BinaryConverter/BinaryConverter.html",
+      "dependencies": []
+    },
+    "DataHandler/Examples/PariahCybersecTest.AccountsTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 905,
+      "exportedPath": "DataHandler/Examples/PariahCybersecTest.AccountsTest.html",
+      "dependencies": []
+    },
+    "DataHandler/Examples/PariahCybersecTest.AccountsWithSessionsTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 2096,
+      "exportedPath": "DataHandler/Examples/PariahCybersecTest.AccountsWithSessionsTest.html",
+      "dependencies": []
+    },
+    "DataHandler/Examples/PariahCybersecTest.DataRequestTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1843,
+      "exportedPath": "DataHandler/Examples/PariahCybersecTest.DataRequestTest.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.Accounts.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 2602,
+      "exportedPath": "DataHandler/Functions/DataHandler.Accounts.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.AccountsWithSessions.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 6283,
+      "exportedPath": "DataHandler/Functions/DataHandler.AccountsWithSessions.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.DataEncryptions.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 2080,
+      "exportedPath": "DataHandler/Functions/DataHandler.DataEncryptions.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.DataRequest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 5668,
+      "exportedPath": "DataHandler/Functions/DataHandler.DataRequest.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.DeviceIdentifier.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 994,
+      "exportedPath": "DataHandler/Functions/DataHandler.DeviceIdentifier.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.JSONDataHandler.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 4196,
+      "exportedPath": "DataHandler/Functions/DataHandler.JSONDataHandler.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.SaltAndHashing.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 2823,
+      "exportedPath": "DataHandler/Functions/DataHandler.SaltAndHashing.html",
+      "dependencies": []
+    },
+    "DataHandler/Functions/DataHandler.SecretManager.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 4516,
+      "exportedPath": "DataHandler/Functions/DataHandler.SecretManager.html",
+      "dependencies": []
+    },
+    "DataHandler/DataHandler.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 377,
+      "exportedPath": "DataHandler/DataHandler.html",
+      "dependencies": []
+    },
+    "EasyPQC/Examples/EasyPQCTest.FileTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1363,
+      "exportedPath": "EasyPQC/Examples/EasyPQCTest.FileTest.html",
+      "dependencies": []
+    },
+    "EasyPQC/Examples/EasyPQCTest.KeysMsgTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1275,
+      "exportedPath": "EasyPQC/Examples/EasyPQCTest.KeysMsgTest.html",
+      "dependencies": []
+    },
+    "EasyPQC/Examples/EasyPQCTest.KeysTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 735,
+      "exportedPath": "EasyPQC/Examples/EasyPQCTest.KeysTest.html",
+      "dependencies": []
+    },
+    "EasyPQC/Examples/EasyPQCTest.RotateTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 763,
+      "exportedPath": "EasyPQC/Examples/EasyPQCTest.RotateTest.html",
+      "dependencies": []
+    },
+    "EasyPQC/Examples/EasyPQCTest.SignatureTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1739,
+      "exportedPath": "EasyPQC/Examples/EasyPQCTest.SignatureTest.html",
+      "dependencies": []
+    },
+    "EasyPQC/Functions/EasyPQC.FileOperations.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 4173,
+      "exportedPath": "EasyPQC/Functions/EasyPQC.FileOperations.html",
+      "dependencies": []
+    },
+    "EasyPQC/Functions/EasyPQC.Keys.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1263,
+      "exportedPath": "EasyPQC/Functions/EasyPQC.Keys.html",
+      "dependencies": []
+    },
+    "EasyPQC/Functions/EasyPQC.Rotation.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1529,
+      "exportedPath": "EasyPQC/Functions/EasyPQC.Rotation.html",
+      "dependencies": []
+    },
+    "EasyPQC/Functions/EasyPQC.Signatures.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1578,
+      "exportedPath": "EasyPQC/Functions/EasyPQC.Signatures.html",
+      "dependencies": []
+    },
+    "EasyPQC/EasyPQC.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 4051,
+      "exportedPath": "EasyPQC/EasyPQC.html",
+      "dependencies": []
+    },
+    "Look At These/Find The Right Solution For You!.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 5239,
+      "exportedPath": "Look At These/Find The Right Solution For You!.html",
+      "dependencies": []
+    },
+    "Look At These/The Pariah's Codex of Autonomous Instruments.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 3605,
+      "exportedPath": "Look At These/The Pariah's Codex of Autonomous Instruments.html",
+      "dependencies": []
+    },
+    "Look At These/The Pariah's Grimoire of Applied Functionality.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1089,
+      "exportedPath": "Look At These/The Pariah's Grimoire of Applied Functionality.html",
+      "dependencies": []
+    },
+    "PasswordGenerator/Functions/PasswordGenerator.GeneratePassword.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 717,
+      "exportedPath": "PasswordGenerator/Functions/PasswordGenerator.GeneratePassword.html",
+      "dependencies": []
+    },
+    "PasswordGenerator/PasswordGenerator.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 188,
+      "exportedPath": "PasswordGenerator/PasswordGenerator.html",
+      "dependencies": []
+    },
+    "Walker.Crypto/Examples/WalkerCryptoTest.AESFileEcryptorTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1542,
+      "exportedPath": "Walker.Crypto/Examples/WalkerCryptoTest.AESFileEcryptorTest.html",
+      "dependencies": []
+    },
+    "Walker.Crypto/Examples/WalkerCryptoTest.SimpleAESEncryptionTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1540,
+      "exportedPath": "Walker.Crypto/Examples/WalkerCryptoTest.SimpleAESEncryptionTest.html",
+      "dependencies": []
+    },
+    "Walker.Crypto/Examples/WalkerCryptoTest.WrongAESFilePasswordTest.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1838,
+      "exportedPath": "Walker.Crypto/Examples/WalkerCryptoTest.WrongAESFilePasswordTest.html",
+      "dependencies": []
+    },
+    "Walker.Crypto/Functions/Walker.Crypto.AESFileEncryptor.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 1257,
+      "exportedPath": "Walker.Crypto/Functions/Walker.Crypto.AESFileEncryptor.html",
+      "dependencies": []
+    },
+    "Walker.Crypto/Functions/Walker.Crypto.AsyncAESEncryption.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 2733,
+      "exportedPath": "Walker.Crypto/Functions/Walker.Crypto.AsyncAESEncryption.html",
+      "dependencies": []
+    },
+    "Walker.Crypto/Functions/Walker.Crypto.SimpleAESEncryption.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 2014,
+      "exportedPath": "Walker.Crypto/Functions/Walker.Crypto.SimpleAESEncryption.html",
+      "dependencies": []
+    },
+    "Walker.Crypto/Walker.Crypto.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 302,
+      "exportedPath": "Walker.Crypto/Walker.Crypto.html",
+      "dependencies": []
+    },
+    "Example Class Used Throughout Examples.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 6934,
+      "exportedPath": "Example Class Used Throughout Examples.html",
+      "dependencies": []
+    },
+    "General Directory Map.canvas": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 5533,
+      "exportedPath": "General Directory Map.html",
+      "dependencies": []
+    },
+    "Understanding Secure Data.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 2499,
+      "exportedPath": "Understanding Secure Data.html",
+      "dependencies": []
+    },
+    "Welcome To Pariah Cybersecurity!.md": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 6118,
+      "exportedPath": "Welcome To Pariah Cybersecurity!.html",
+      "dependencies": []
+    },
+    "lib/fonts/94f2f163d4b698242fef.otf": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 66800,
+      "exportedPath": "lib/fonts/94f2f163d4b698242fef.otf",
+      "dependencies": []
+    },
+    "lib/fonts/72505e6a122c6acd5471.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 104232,
+      "exportedPath": "lib/fonts/72505e6a122c6acd5471.woff2",
+      "dependencies": []
+    },
+    "lib/fonts/2d5198822ab091ce4305.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 104332,
+      "exportedPath": "lib/fonts/2d5198822ab091ce4305.woff2",
+      "dependencies": []
+    },
+    "lib/fonts/c8ba52b05a9ef10f4758.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 98868,
+      "exportedPath": "lib/fonts/c8ba52b05a9ef10f4758.woff2",
+      "dependencies": []
+    },
+    "lib/fonts/cb10ffd7684cd9836a05.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 106876,
+      "exportedPath": "lib/fonts/cb10ffd7684cd9836a05.woff2",
+      "dependencies": []
+    },
+    "lib/fonts/b5f0f109bc88052d4000.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 105804,
+      "exportedPath": "lib/fonts/b5f0f109bc88052d4000.woff2",
+      "dependencies": []
+    },
+    "lib/fonts/cbe0ae49c52c920fd563.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 106108,
+      "exportedPath": "lib/fonts/cbe0ae49c52c920fd563.woff2",
+      "dependencies": []
+    },
+    "lib/fonts/535a6cf662596b3bd6a6.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 111708,
+      "exportedPath": "lib/fonts/535a6cf662596b3bd6a6.woff2",
+      "dependencies": []
+    },
+    "lib/fonts/70cc7ff27245e82ad414.ttf": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 192740,
+      "exportedPath": "lib/fonts/70cc7ff27245e82ad414.ttf",
+      "dependencies": []
+    },
+    "lib/fonts/454577c22304619db035.ttf": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 161376,
+      "exportedPath": "lib/fonts/454577c22304619db035.ttf",
+      "dependencies": []
+    },
+    "lib/fonts/52ac8f3034507f1d9e53.ttf": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 191568,
+      "exportedPath": "lib/fonts/52ac8f3034507f1d9e53.ttf",
+      "dependencies": []
+    },
+    "lib/fonts/05b618077343fbbd92b7.ttf": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 155288,
+      "exportedPath": "lib/fonts/05b618077343fbbd92b7.ttf",
+      "dependencies": []
+    },
+    "lib/fonts/4bb6ac751d1c5478ff3a.woff2": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 7876,
+      "exportedPath": "lib/fonts/4bb6ac751d1c5478ff3a.woff2",
+      "dependencies": []
+    },
+    "lib/media/6155340132a851f6089e.svg": {
+      "modifiedTime": 1746734468337,
+      "sourceSize": 315,
+      "exportedPath": "lib/media/6155340132a851f6089e.svg",
+      "dependencies": []
+    }
+  }
+}

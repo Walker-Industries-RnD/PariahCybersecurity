@@ -1,31 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 using Org.BouncyCastle.Pqc.Crypto.Crystals.Dilithium;
 using Org.BouncyCastle.Security;
-using Ceras;
 using Org.BouncyCastle.Pqc.Crypto.Crystals.Kyber;
 using Data.HashFunction.Blake3;
 using EasyCompressor;
 using K4os.Compression.LZ4;
-using SecureStringPlus;
 using Walker.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
 using System.Data.HashFunction;
-using static Org.BouncyCastle.Math.EC.ECCurve;
-using static Pariah_Cybersecurity.EasyPQC;
-using Org.BouncyCastle.Crypto;
-using NBitcoin;
 using Org.BouncyCastle.Utilities;
-using System.Security.Cryptography.X509Certificates;
-using static Org.BouncyCastle.Asn1.Cmp.Challenge;
-using static NBitcoin.WalletPolicies.MiniscriptNode.ParameterRequirement;
 using static Walker.Crypto.SimpleAESEncryption;
-
-
+using SecureData = WISecureData.SecureData;
 
 
 namespace Pariah_Cybersecurity
@@ -34,9 +19,9 @@ namespace Pariah_Cybersecurity
     //TODO; Parameterize and add error checks to everything
     //Replace file readbytes with something faster (MMap?)
     //Turn a few of these into structs (Heap safety, use classes for big files only)
-    //Convert a few strings to SecureString
+    //Convert a few strings to SecureData
     //CLEAN UP MESS
-    //Change all SecureString.ConvertToString(true) to ConvertToString
+    //Change all SecureData.ConvertToString(true) to ConvertToString
     //Add await to where it needs to be added
 
     public class EasyPQC
@@ -467,8 +452,15 @@ namespace Pariah_Cybersecurity
             //Use this if you want an easy life
 
             //Compresses the file and creates a signed filehash, make sure you use .ConvertToString(true) to make this sendable
-            public static async Task<PackedFile> PackFiles(string fileInput, string fileOutput, byte[] privateKey, SecureString sessionkey,
-                CompressionProgress compressionProgress, CompressionLevel compressionType, bool encryptFile)
+
+            public static async Task<PackedFile> PackFiles(
+                string fileInput,
+                string fileOutput,
+                Dictionary<string, byte[]> privateKey,
+                SecureData sessionkey,
+                CompressionProgress compressionProgress,
+                CompressionLevel compressionType,
+                bool encryptFile)
             {
                 string filename = Pariah_Cybersecurity.PasswordGenerator.GeneratePassword(24, true, false, false, false);
                 LZ4Level comptype = compressionType switch
@@ -498,42 +490,62 @@ namespace Pariah_Cybersecurity
                     packedFilePath = encryptedPath;
                 }
 
-                var finalpriv = (DilithiumPrivateKeyParameters)PrivateKeyFactory.CreateKey(privateKey);
+                var finalpriv = Signatures.DecodePrivate(privateKey);
                 var privateKeyBytes = Signatures.Encode(finalpriv);
 
-                byte[] signatureHash = await HashFile(new MemoryStream(compressedData));
-                byte[] rawSignature = await Signatures.CreateSignature(privateKeyBytes, Convert.ToBase64String(signatureHash));
-                string encryptedSign = SimpleAESEncryption.Encrypt(Convert.ToBase64String(rawSignature), sessionkey).ToString();
+                // ← here: wrap compressedData in a MemoryStream for hashing
+                using var hashStream = new MemoryStream(compressedData);
+                byte[] signatureHash = await HashFile(hashStream);
+
+                byte[] rawSignature = await Signatures.CreateSignature(
+                    privateKeyBytes,
+                    Convert.ToBase64String(signatureHash));
+
+                string encryptedSign = SimpleAESEncryption
+                    .Encrypt(Convert.ToBase64String(rawSignature), sessionkey)
+                    .ToString();
 
                 return new PackedFile(packedFilePath, encryptedSign);
             }
 
-
-            public static async Task<bool> UnpackFile(PackedFile inputFile, string outputPath, byte[] publicKey, CompressionProgress compressionProgress, CompressionLevel compressionType, SecureString sessionkey)
+            public static async Task<bool> UnpackFile(
+                PackedFile inputFile,
+                string outputPath,
+                Dictionary<string, byte[]> publicKey,
+                CompressionProgress compressionProgress,
+                CompressionLevel compressionType,
+                SecureData sessionkey)
             {
                 bool isEncrypted = Path.GetExtension(inputFile.FilePath) == ".encpack";
                 string tempFilePath = inputFile.FilePath;
 
                 if (isEncrypted)
                 {
-                    tempFilePath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(inputFile.FilePath) + ".decrypted");
+                    tempFilePath = Path.Combine(
+                        Path.GetTempPath(),
+                        Path.GetFileNameWithoutExtension(inputFile.FilePath) + ".decrypted");
                     await Walker.Crypto.AESFileEncryptor.DecryptFileAsync(inputFile.FilePath, tempFilePath, sessionkey);
                 }
 
-                var decryptedSign = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(inputFile.Signature), sessionkey);
-                byte[] expectedSignature = Convert.FromBase64String(decryptedSign.ConvertToString());
+                var decryptedSign = SimpleAESEncryption.Decrypt(
+                    AESEncryptedText.FromUTF8String(inputFile.Signature),
+                    sessionkey);
 
+                byte[] expectedSignature = Convert.FromBase64String(decryptedSign.ConvertToString());
                 byte[] compressedBytes = await EasyPQC.ReadAllBytesAsync(tempFilePath);
-                byte[] actualHash = await HashFile(new MemoryStream(compressedBytes));
+
+                // ← here: wrap compressedBytes in a MemoryStream for hashing
+                using var hashStream = new MemoryStream(compressedBytes);
+                byte[] actualHash = await HashFile(hashStream);
                 string base64Hash = Convert.ToBase64String(actualHash);
 
-                var finalpub = (DilithiumPrivateKeyParameters)PrivateKeyFactory.CreateKey(publicKey);
+                var finalpub = Signatures.DecodePublic(publicKey);
                 var publicKeyBytes = Signatures.Encode(finalpub);
 
-                if (!Signatures.VerifySignature(publicKeyBytes, expectedSignature, base64Hash).Result)
+                if (!await Signatures.VerifySignature(publicKeyBytes, expectedSignature, base64Hash))
                 {
                     if (isEncrypted) File.Delete(tempFilePath);
-                    return false; // Signature validation failed
+                    return false;
                 }
 
                 LZ4Level comptype = compressionType switch
@@ -555,6 +567,7 @@ namespace Pariah_Cybersecurity
                 if (isEncrypted) File.Delete(tempFilePath);
                 return true;
             }
+
 
 
         }
@@ -591,7 +604,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task<string> RotateKey(SecureString key, int rotations, string salt)
+            public async Task<string> RotateKey(SecureData key, int rotations, string salt)
             {
 
                 var utf8Key = key.ConvertToString();
@@ -738,7 +751,7 @@ namespace Pariah_Cybersecurity
         //Share the encapsulated.text with the leader, store the session key leader, leader checks all verificatiosn with VerifySignature()
 
         //The header does Keys.CreateSecretTwo(leaderPrivateKey, encryptedSessionKeyFromMember); once, save it to a dictionary with (memberID, encryptedsessionkey)
-        //To create a good session key, let's use PasswordGenerator.GeneratePassword(32, true, true, true, true).ToSecureString(true); BUT we aren't done yet
+        //To create a good session key, let's use PasswordGenerator.GeneratePassword(32, true, true, true, true).ToSecureData(); BUT we aren't done yet
         //Now we use   SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(true)(), recoverykey).ConvertToString(true)();    and we share the string with the user
 
         //The user decrypts the string (Turn it to SimpleAESEncryption.AESEncryptedText first) to get the shared session key
@@ -789,7 +802,7 @@ namespace Pariah_Cybersecurity
 
 
             //Content is the message
-            public MessageData(string messageId, string senderName, string content, DateTime timestamp, bool isBot, string channelId, string previouskey, int rotation, SecureString SessionKey)
+            public MessageData(string messageId, string senderName, string content, DateTime timestamp, bool isBot, string channelId, string previouskey, int rotation, SecureData SessionKey)
             {
                 MessageId = messageId;
                 SenderName = senderName;
@@ -817,7 +830,7 @@ namespace Pariah_Cybersecurity
                     $"Rotation: {Rotation}");
             }
 
-            public static MessageData FromString(string formattedString, SecureString ChatKey)
+            public static MessageData FromString(string formattedString, SecureData ChatKey)
             {
                 var lines = formattedString.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
                 string messageId = lines[0].Substring(11);
@@ -875,7 +888,7 @@ namespace Pariah_Cybersecurity
             //The bytes are the blake3 hash, we know it will always be 32 bytes long
             public Dictionary<string, byte[]> Files { get; set; } = new Dictionary<string, byte[]>();
 
-            public AttachmentData(string senderID, List<string> FileNames, SecureString secretkey, List<byte[]> privatekey)
+            public AttachmentData(string senderID, List<string> FileNames, SecureData secretkey, List<byte[]> privatekey)
             {
                 this.SenderId = senderID;
 
