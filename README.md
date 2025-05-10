@@ -8,7 +8,11 @@ Pariah Cybersecurity is a .NET 8.0 Based Library. Primarily developed for progra
 
 This is fully open source and free forever! It was made to target Windows, Linux and MacOS!
 
-## View the wiki (Will take a moment to load) 
+## Watch The Video
+[![Watch the video](https://img.youtube.com/vi/Knm_1H1l3tI/hqdefault.jpg)](https://youtu.be/Knm_1H1l3tI)
+
+
+## View the wiki (May take a moment to load) 
 [Welcome to Pariah Cybersecurity Wiki](https://walker-industries-rnd.github.io/PariahCybersecurity/Welcome%20To%20Pariah%20Cybersecurity.html)
 
 <div style="white-space: nowrap;">
