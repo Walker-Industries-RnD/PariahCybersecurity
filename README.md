@@ -52,23 +52,27 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 ## What's Included?
 
-🔐Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption 
+🔐Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption  
+
 📄JSONDataHandler - A Simple Yet Powerful Method Of Writing, Saving and Getting Data
+
 🗝️SecretManager - A Local Based Secrets Manager
+
 📨DataRequest - For Creating, Storing and Getting Data Readable By Other Programs Securely
+
 👤Accounts - A Barebones Example Of A Local Based Account System
+
 🔐AccountsWithSessions - A Secure, Local Based Account System With Session Verification
+
 
 And Much, Much More!
 
-Check the [[Find The Right Solution For You!]] Page To Learn More! This also acts as the table of contents!
-You Can Also Use [[The Pariah's Codex of Autonomous Instruments]] To View Almost All Pariah Focused Functions!
-Finally, you can view examples directly within [[The Pariah's Grimoire of Applied Functionality]]!
 
 ## Installing Dependencies
 
 I wanted to make this all within one package, but it seems that there are errors trying to do so. Still, you can use the below to install all dependencies through your project's CMDline!
 
+```
 dotnet add package BouncyCastle.NetCore 
 dotnet add package Ceras 
 dotnet add package K4os.Compression.LZ4 
@@ -77,6 +81,7 @@ dotnet add package Newtonsoft.Json
 dotnet add package EasyCompressor.LZ4 
 dotnet add package Data.HashFunction.Blake3 
 dotnet add package System.Data.HashFunction.Interfaces
+```
 
 ## How Do I Use It?
 
