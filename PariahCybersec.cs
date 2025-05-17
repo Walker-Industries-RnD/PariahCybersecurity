@@ -3,6 +3,8 @@ using System.Text;
 using Walker.Crypto;
 using Org.BouncyCastle.Security;
 using static Pariah_Cybersecurity.DataHandler.SaltAndHashing;
+using JObject = Newtonsoft.Json.Linq.JObject;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 using Konscious.Security.Cryptography;
 using File = System.IO.File;
 using System.Text.Json;
