@@ -1148,7 +1148,7 @@ namespace Pariah_Cybersecurity
             }
 
             //Example function to get the path of the exe file for the program that called this
-
+            //Ignore these, I might fully remove them
             public static async Task<string?> GetExecutablePathAsync(string command)
             {
                 var isWindows = OperatingSystem.IsWindows();
@@ -1216,10 +1216,10 @@ namespace Pariah_Cybersecurity
 
 
             public async Task<DirectoryData> GetPaths(SecureData identifier, string software, string author,
-                string programName, string serviceParent)
+                string programName, string serviceParent, string basePath)
             {
 
-                string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
+                string companyPath = Path.Combine(basePath, author); //Zakstar
 
                 string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
 
@@ -1282,7 +1282,7 @@ namespace Pariah_Cybersecurity
 
 
             public async Task<SecureData> CreateNewSystem(string username, SecureData identifier, SecureData password, string software, string author, 
-                string exePath, string serviceParent, int tiers, SecureData? PublicKey)
+                string exePath, string serviceParent, int tiers, SecureData? PublicKey, string basePath)
             {
 
                 if (PublicKey == null)
@@ -1294,7 +1294,7 @@ namespace Pariah_Cybersecurity
 
                 #region Basic Paths
                 //First create the proper paths
-                string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
+                string companyPath = Path.Combine(basePath, author); //Zakstar
 
                 string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
 
