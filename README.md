@@ -155,6 +155,11 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 
 This project is licensed under the [NON-AI Mozilla Public License Version 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0).
 
+
+[![Clause1](https://github.com/Walker-Industries-RnD/Malicious-Affiliation-Ban/blob/main/WIBan.png?raw=true)](https://github.com/Walker-Industries-RnD/Malicious-Affiliation-Ban/blob/main/README.md)
+
+
+
   
 
 All images on this page were created by the artist Kennaness and are displayed here with permission.
