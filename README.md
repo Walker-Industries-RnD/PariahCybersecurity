@@ -123,6 +123,7 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 - [X] Changing SecureString to use a custom char[] or byte[] based system (The current SecureString has a length limit, immediate fix needed)
 - [x] Switch all keys to being nonoptional, no default
 - [x] Replace Newtonsoft.JSON with System.Text.JSON
+- [x] Making it so you can choose where the DataRequest system is setup instead of having to use the Environment Folder
 
 - [ ] Fix Pack and Unpack File (Not too important since I can use the AESmethod for now, I might outsource help here )
 
@@ -153,6 +154,11 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 ## License
 
 This project is licensed under the [NON-AI Mozilla Public License Version 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0).
+
+
+[![Clause1](https://github.com/Walker-Industries-RnD/Malicious-Affiliation-Ban/blob/main/WIBan.png?raw=true)](https://github.com/Walker-Industries-RnD/Malicious-Affiliation-Ban/blob/main/README.md)
+
+
 
   
 
