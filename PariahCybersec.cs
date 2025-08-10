@@ -3,7 +3,6 @@ using System.Text;
 using Walker.Crypto;
 using Org.BouncyCastle.Security;
 using static Pariah_Cybersecurity.DataHandler.SaltAndHashing;
-using JObject = Newtonsoft.Json.Linq.JObject;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
 using Konscious.Security.Cryptography;
 using File = System.IO.File;
@@ -17,6 +16,7 @@ using static Walker.Crypto.SimpleAESEncryption;
 using WISecureData;
 
 using SecureData = WISecureData.SecureData;
+using System.Text.Json.Nodes;
 
 
 //We no longer use SimpleAESEncryption because it does not adhere to AES256
@@ -88,9 +88,9 @@ namespace Pariah_Cybersecurity
             {
                 public string FileName { get; private set; }
                 public string FilePath { get; internal set; }
-                public JObject Data { get; private set; }
+                public JsonObject Data { get; private set; }
 
-                public PariahJSON(string fileName, string filePath, JObject data)
+                public PariahJSON(string fileName, string filePath, JsonObject data)
                 {
                     FileName = fileName;
                     FilePath = filePath;
@@ -99,7 +99,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public static async Task CreateJsonFile(string Filename, string FileLocation, JObject defaultData)
+            public static async Task CreateJsonFile(string Filename, string FileLocation, JsonObject defaultData)
             {
                 try
                 {
@@ -110,7 +110,7 @@ namespace Pariah_Cybersecurity
 
                     if (File.Exists(finalPathLocation)) { throw new Exception($"File with name already exists in directory, filepath is {finalPathLocation}."); }
 
-                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JObject>(defaultData);
+                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JsonObject>(defaultData);
 
                     await EasyPQC.WriteAllBytesAsync(finalPathLocation, data, null);
 
@@ -142,8 +142,8 @@ namespace Pariah_Cybersecurity
 
                     var file = await FileAsync.ReadAllBytes(finalPathLocation); // Remember the bytes are already JSON  
 
-                    // Deserialize the byte array into a JObject  
-                    var data = await BinaryConverter.NCByteArrayToObjectAsync<JObject>(file);
+                    // Deserialize the byte array into a JsonObject  
+                    var data = await BinaryConverter.NCByteArrayToObjectAsync<JsonObject>(file);
 
                     PariahJSON pariahJSON = new PariahJSON(Filename, FileLocation, data);
 
@@ -159,7 +159,7 @@ namespace Pariah_Cybersecurity
 
             public static async Task<PariahJSON> AddToJson<T>(PariahJSON JsonData, string dataName, object data, SecureData? Key)
             {
-                JObject editedData = JsonData.Data;
+                JsonObject editedData = JsonData.Data;
 
                 if (Key == null)
                 {
@@ -178,7 +178,7 @@ namespace Pariah_Cybersecurity
 
             public static PariahJSON DeletefromJson(PariahJSON JsonData, string dataName)
             {
-                JObject editedData = JsonData.Data;
+                JsonObject editedData = JsonData.Data;
 
                 editedData.Remove(dataName);
 
@@ -189,7 +189,7 @@ namespace Pariah_Cybersecurity
 
             public static async Task<PariahJSON> UpdateJson<T>(PariahJSON JsonData, string dataName, object data, SecureData? Key)
             {
-                JObject editedData = JsonData.Data;
+                JsonObject editedData = JsonData.Data;
 
                 editedData.Remove(dataName);
 
@@ -210,12 +210,13 @@ namespace Pariah_Cybersecurity
 
             public static async Task<object> GetVariable<T>(PariahJSON JsonData, string dataName, SecureData? Key)
             {
-                JObject editedData = JsonData.Data;
+                JsonObject editedData = JsonData.Data;
 
-                if (!editedData.TryGetValue(dataName, out var token) || token.Type != JTokenType.String)
+                if (!editedData.TryGetPropertyValue(dataName, out var node) || node is not JsonValue value || value.TryGetValue<string>(out var str) == false)
                     throw new Exception($"Invalid or missing string for key '{dataName}'.");
 
-                string item = token.Value<string>()!;
+
+                string item = node!.GetValue<string>();
 
                 if (Key == null)
                 {
@@ -229,18 +230,20 @@ namespace Pariah_Cybersecurity
 
             public static async Task<bool> CheckIfVariableExists(PariahJSON JsonData, string dataName)
             {
-                JObject editedData = JsonData.Data;
-                if (editedData.TryGetValue(dataName, out var token))
+                JsonObject editedData = JsonData.Data;
+                if (editedData.TryGetPropertyValue(dataName, out JsonNode? node))
                 {
-                    return token.Type == JTokenType.String;
+                    return node is JsonValue val && val.TryGetValue<string>(out _);
                 }
+                return false;
+
                 return false;
             }
 
 
             public static async Task SaveJson(PariahJSON JsonData)
             {
-                JObject source = JsonData.Data;
+                JsonObject source = JsonData.Data;
                 string Filename = JsonData.FileName;
                 string FileLocation = JsonData.FilePath;
 
@@ -255,7 +258,7 @@ namespace Pariah_Cybersecurity
 
                     //Now that we checked those conditionals, let's update the JSON!
 
-                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JObject>(JsonData.Data);
+                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JsonObject>(JsonData.Data);
 
                     await EasyPQC.WriteAllBytesAsync(finalPathLocation, data, null);
 
@@ -364,7 +367,7 @@ namespace Pariah_Cybersecurity
 
 
         //Thank you to https://stackoverflow.com/questions/34950611/how-to-create-a-pbkdf2-sha256-password-hash-in-c-sharp-bouncy-castle for BouncyCastleHashing, I should stop being lazy and add summaries too
-  
+
         //Integrate logic from UserAuth
 
 
@@ -517,7 +520,7 @@ namespace Pariah_Cybersecurity
 
                         //Create the file
 
-                        var secretData = new JObject
+                        var secretData = new JsonObject
                         {
                             ["Secret Name"] = item.SecretName,
                         };
@@ -542,7 +545,7 @@ namespace Pariah_Cybersecurity
                 //Create the bank save file
 
 
-                var bankOpeningData = new JObject
+                var bankOpeningData = new JsonObject
                 {
                     ["Bank Name"] = BankName
                 };
@@ -703,7 +706,7 @@ namespace Pariah_Cybersecurity
 
                 //Create the file
 
-                var secretData = new JObject
+                var secretData = new JsonObject
                 {
                     ["Secret Name"] = PublicSecret.SecretName,
                 };
@@ -936,7 +939,7 @@ namespace Pariah_Cybersecurity
                     // If NewPath is empty, we use newBankDirectoryPath
                     var newSavePath = newPath ?? NewFileDirectoryPath; //WE LOVE ?? CHECKS
 
-                    var updatedJson = new JObject
+                    var updatedJson = new JsonObject
                     {
                         ["Secret Name"] = secretFile.SecretName,
 
@@ -1148,7 +1151,7 @@ namespace Pariah_Cybersecurity
             }
 
             //Example function to get the path of the exe file for the program that called this
-            //Ignore these, I might fully remove them
+
             public static async Task<string?> GetExecutablePathAsync(string command)
             {
                 var isWindows = OperatingSystem.IsWindows();
@@ -1216,17 +1219,17 @@ namespace Pariah_Cybersecurity
 
 
             public async Task<DirectoryData> GetPaths(SecureData identifier, string software, string author,
-                string programName, string serviceParent, string basePath)
+                string programName, string serviceParent)
             {
 
-                string companyPath = Path.Combine(basePath, author); //Zakstar
+                string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
 
                 string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
 
                 string specificProgram = Path.Combine(mainServicePath, software); //Zakstar/GunGaleOnline/TournamentOfBullets   Holds a json with all users (Sinon, LLENN, DeathGun, Etc.)
 
                 string userSharedResources = Path.Combine(specificProgram, "UserSharedResources"); //Zakstar/GunGaleOnline/TournamentOfBullets/UserSharedResources   Shared across specific subprogram
-                
+
                 var identifierToUse = identifier.ConvertToString();
 
                 var exePath = await GetExecutablePathAsync(programName);
@@ -1281,8 +1284,8 @@ namespace Pariah_Cybersecurity
 
 
 
-            public async Task<SecureData> CreateNewSystem(string username, SecureData identifier, SecureData password, string software, string author, 
-                string exePath, string serviceParent, int tiers, SecureData? PublicKey, string basePath)
+            public async Task<SecureData> CreateNewSystem(string username, SecureData identifier, SecureData password, string software, string author,
+                string exePath, string serviceParent, int tiers, SecureData? PublicKey)
             {
 
                 if (PublicKey == null)
@@ -1294,7 +1297,7 @@ namespace Pariah_Cybersecurity
 
                 #region Basic Paths
                 //First create the proper paths
-                string companyPath = Path.Combine(basePath, author); //Zakstar
+                string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
 
                 string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
 
@@ -1336,7 +1339,7 @@ namespace Pariah_Cybersecurity
 
                 //First we will create a CORE service for this program
 
-                await JSONDataHandler.CreateJsonFile("CORE", mainServicePath, new JObject { });
+                await JSONDataHandler.CreateJsonFile("CORE", mainServicePath, new JsonObject { });
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile("CORE", mainServicePath);
 
@@ -1348,7 +1351,7 @@ namespace Pariah_Cybersecurity
 
                 var signedCreatedBy = await EasyPQC.Signatures.CreateSignature(keys.Item2, author);
 
-                var savedPubKey = await JSONDataHandler.AddToJson<Dictionary<string, byte[]>>(loadedJson, "Public Key", keys.Item1, PublicKey); 
+                var savedPubKey = await JSONDataHandler.AddToJson<Dictionary<string, byte[]>>(loadedJson, "Public Key", keys.Item1, PublicKey);
 
                 var savedMotherPath = await JSONDataHandler.AddToJson<byte[]>(savedPubKey, "signedMother", signedMotherPath, PublicKey);
 
@@ -1388,14 +1391,14 @@ namespace Pariah_Cybersecurity
                     var signedTierPass = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Value.ConvertToString());
                     var signedEncTier = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Key);
 
-                    encryptedTiers.Add(item.Key, new EncryptedTier (signedEncTier, encTierPass, signedTierPass));
+                    encryptedTiers.Add(item.Key, new EncryptedTier(signedEncTier, encTierPass, signedTierPass));
 
 
                 }
 
 
 
-                await JSONDataHandler.CreateJsonFile("Data Tiers", mainServicePath, new JObject { });
+                await JSONDataHandler.CreateJsonFile("Data Tiers", mainServicePath, new JsonObject { });
 
                 var jsonToHaveTiers = await JSONDataHandler.LoadJsonFile("Data Tiers", mainServicePath);
 
@@ -1410,7 +1413,7 @@ namespace Pariah_Cybersecurity
                 //And finally the session key container for holding session tokens
 
 
-                await JSONDataHandler.CreateJsonFile("Allowed Programs", mainServicePath, new JObject { });
+                await JSONDataHandler.CreateJsonFile("Allowed Programs", mainServicePath, new JsonObject { });
 
                 var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
 
@@ -1451,7 +1454,7 @@ namespace Pariah_Cybersecurity
 
                 var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
 
-                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>) await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 //Should still be secure, can be better
 
@@ -1462,12 +1465,12 @@ namespace Pariah_Cybersecurity
                     throw new Exception("This program is blacklisted.");
                 }
 
-                var allowedProgramsList = (Dictionary<string, SecureData>) await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+                var allowedProgramsList = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
 
                 var jsonToHaveTiers = await JSONDataHandler.LoadJsonFile("Data Tiers", mainServicePath);
 
-                var jsonWithTiers = (Dictionary<string, EncryptedTier>) await JSONDataHandler.GetVariable<Dictionary<string, EncryptedTier>>(jsonToHaveTiers, "Data Tiers", PublicKey);
+                var jsonWithTiers = (Dictionary<string, EncryptedTier>)await JSONDataHandler.GetVariable<Dictionary<string, EncryptedTier>>(jsonToHaveTiers, "Data Tiers", PublicKey);
 
 
 
@@ -1491,7 +1494,7 @@ namespace Pariah_Cybersecurity
 
                 var loadedCOREJson = await JSONDataHandler.LoadJsonFile("CORE", mainServicePath);
 
-                var pubKey = (Dictionary<string, byte[]>) await JSONDataHandler.GetVariable<Dictionary<string, byte>>(loadedCOREJson, "Public Key", PublicKey);
+                var pubKey = (Dictionary<string, byte[]>)await JSONDataHandler.GetVariable<Dictionary<string, byte>>(loadedCOREJson, "Public Key", PublicKey);
 
                 //Has errors, needs to be fixed but should still be secure
 
@@ -1525,7 +1528,7 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public async Task AddToBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
+            public async Task AddToBlacklist(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
             {
                 await ValidateSession(connSession, PublicKey);
 
@@ -1544,7 +1547,7 @@ namespace Pariah_Cybersecurity
                         break;
                     }
 
-   
+
                 }
 
                 if (varExists)
@@ -1553,14 +1556,14 @@ namespace Pariah_Cybersecurity
                 }
 
 
-                jsonWithBlacklistedPrograms.Add(softwareName, mainServicePath.ToSecureData()); 
+                jsonWithBlacklistedPrograms.Add(softwareName, mainServicePath.ToSecureData());
 
                 var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
 
                 await JSONDataHandler.SaveJson(jsonToSave);
             }
 
-            public async Task RemoveFromBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
+            public async Task RemoveFromBlacklist(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
             {
                 await ValidateSession(connSession, PublicKey);
 
@@ -1735,7 +1738,7 @@ namespace Pariah_Cybersecurity
 
 
 
-     
+
             public class AccountData
             {
                 public string Username { get; set; }
@@ -1769,7 +1772,7 @@ namespace Pariah_Cybersecurity
                 List<AccountData> accountsList = new List<AccountData>();
 
                 // Use your JSONDataHandler to create the file
-                await JSONDataHandler.CreateJsonFile("Users", directory, new JObject { });
+                await JSONDataHandler.CreateJsonFile("Users", directory, new JsonObject { });
 
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
 
@@ -2309,7 +2312,7 @@ namespace Pariah_Cybersecurity
                 List<AccountData> accountsList = new List<AccountData>();
 
                 // Use your JSONDataHandler to create the file
-                await JSONDataHandler.CreateJsonFile("Users", directory, new JObject { });
+                await JSONDataHandler.CreateJsonFile("Users", directory, new JsonObject { });
 
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
 
@@ -2508,7 +2511,7 @@ namespace Pariah_Cybersecurity
                 public string SessionKey { get; set; }
                 public string Expiry { get; set; }
                 public string IsTrusted { get; set; }
-                public string ChecksAndLastTry { get;  set; }
+                public string ChecksAndLastTry { get; set; }
 
 
                 public ActiveSession() { }
@@ -2647,7 +2650,7 @@ namespace Pariah_Cybersecurity
                 List<AccountData> accountsList = new List<AccountData>();
 
                 // Use your JSONDataHandler to create the file
-                await JSONDataHandler.CreateJsonFile("Users", directory, new JObject { });
+                await JSONDataHandler.CreateJsonFile("Users", directory, new JsonObject { });
 
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
 
@@ -2708,7 +2711,7 @@ namespace Pariah_Cybersecurity
 
                     List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
 
-     
+
 
 
 
@@ -3141,8 +3144,6 @@ namespace Pariah_Cybersecurity
 
 
     }
-
-    //Unused for a 
     public static class Utilities
     {
         public static string CreateUUID()

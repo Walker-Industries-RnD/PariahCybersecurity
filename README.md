@@ -95,7 +95,7 @@ With Pariah Cybersecurity, all you have to do is
 
 ``` csharp
 //Create a new Pariah Object on Disc
-await JSONDataHandler.CreateJsonFile(pathToSaveTo, "Yareli Gallery", new JObject {} );
+await JSONDataHandler.CreateJsonFile(pathToSaveTo, "Yareli Gallery", new JsonObject {} );
 //Load the PariahJSON you just made
 var loadedGalleryFile = await JSONDataHandler.LoadJsonFile(pathToSaveTo, "Yareli Gallery");
 //Add the gallery list to the PariahJson

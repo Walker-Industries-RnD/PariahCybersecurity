@@ -437,8 +437,8 @@ namespace Pariah_Cybersecurity
 
             public static async Task<byte[]> HashFile(Stream fileData)
             {
-                var hashFunction = (IHashFunctionAsync)Blake3Factory.Instance.Create();
-                var bytes = await hashFunction.ComputeHashAsync(fileData);
+                var hashFunction = Blake3Factory.Instance.Create();
+                var bytes = hashFunction.ComputeHash(fileData.ReadAllBytes());
                 return bytes.Hash;
             }
 
