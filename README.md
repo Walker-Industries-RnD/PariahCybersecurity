@@ -13,7 +13,7 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 
 # View the wiki 
-[Welcome to Pariah Cybersecurity Wiki](https://walker-industries-rnd.github.io/PariahCybersecurity/Welcome%20To%20Pariah%20Cybersecurity.html)
+[Welcome to Pariah Cybersecurity Wiki](https://walker-industries-rnd.github.io/PariahCybersecurity/)
 
 <div style="white-space: nowrap;">
 
