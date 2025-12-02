@@ -1,163 +1,144 @@
-[![Project Replicant](imgs/ProjectReplicant.png)](https://walkerdev.itch.io/project-replicant)
+<img src="imgs/PariahCybersec.png" alt="Pariah Cybersecurity" width="100%"/>
 
-![Pariah Cybersec](imgs/PariahCybersec.png)
+# Pariah Cybersecurity Suite
+**High-grade. Local-first. Post-quantum ready. Forever free.**
 
-## What is Pariah Cybersecurity?
+A complete .NET 8 security framework built for real-world apps — from password managers to distributed systems.  
+Built with BouncyCastle, Konscious Argon2, and battle-tested in the fires of XRUIOS, Project Replicant, and Database Designer.  
+Now yours to wield.
 
-Pariah Cybersecurity is a .NET 8.0 Based Library. Primarily developed for programs like the XRUIOS, Project Replicant and Database Designer, it contains a suite of tools meant to make development both easy and secure for developers of all levels!
+<p align="center">
+  <strong>Windows • Linux • macOS • Fully Offline • No Telemetry • No BS</strong>
+</p>
 
-This is fully open source and free forever! It was made to target Windows, Linux and MacOS!
+<br>
 
-## Watch The Video
-[![Watch the video](https://img.youtube.com/vi/Knm_1H1l3tI/hqdefault.jpg)](https://youtu.be/Knm_1H1l3tI)
+<div align="center">
 
-
-## View the wiki (May take a moment to load) 
-[Welcome to Pariah Cybersecurity Wiki](https://walker-industries-rnd.github.io/PariahCybersecurity/Welcome%20To%20Pariah%20Cybersecurity.html)
-
-<div style="white-space: nowrap;">
-
-<div style="display: inline-block; vertical-align: top; width: 48%; margin-right: 2%;">
-  <h3>💻 Code By WalkerDev</h3>
-  <img src="imgs/WalkerDev.png" alt="WalkerDev" height="200"><br>
-  "Loving Coding Is Intrinsically The Same As Hating Yourself"<br>
-  <a href="https://discord.gg/H8h8scsxtH">&gt; His Discord</a>
-</div>
-
-<div style="display: inline-block; vertical-align: top; width: 48%;">
-  <h3>🎨 Art By Kennaness</h3>
-<img src="imgs/Kennaness.png" alt="Ada" height="200"><br>
-  "When Will I Get My Isekai"<br>
-  <a href="https://bsky.app/profile/kennaness.bsky.social">&gt; Her Bluesky</a>
-</div>
+| ![WalkerDev](imgs/WalkerDev.png) | ![Kennaness](imgs/Kennaness.png) |
+|----------------------------------|----------------------------------|
+| **Code by WalkerDev**<br>“Loving coding is the same as hating yourself”<br>[Discord](https://discord.gg/H8h8scsxtH) | **Art by Kennaness**<br>“When will I get my isekai?”<br>[Bluesky](https://bsky.app/profile/kennaness.bsky.social) • [ArtStation](https://www.artstation.com/kennaness) |
 
 </div>
 
 <br>
+
+
 <br>
 
+---
+## Watch the v2 Trailer
+
+<div align="center">
+  <a href="https://youtu.be/Knm_1H1l3tI">
+    <img src="https://img.youtube.com/vi/Knm_1H1l3tI/maxresdefault.jpg" 
+         alt="Pariah Cybersecurity v2 — Official Trailer" 
+         width="80%" 
+         style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
+  </a>
+</div>
+
 <br>
 
-[Learn More About Walker Industries!](https://walkerindustries.xyz)
-
-[Join the Discord!](https://discord.gg/H8h8scsxtH)
-
-[Support Me on Patreon!](https://www.patreon.com/walkerdev)
-
-[Keep Up With Kennaness' Art Process!!](https://www.artstation.com/kennaness)
-
+<p align="center">
+  <a href="https://walker-industries-rnd.github.io/PariahCybersecurity/" 
+     style="font-size: 1.4em; color: #58a6ff; text-decoration: none;">
+    <strong>Documentation • Examples • API Reference</strong>
+  </a>
+</p>
 
 
-(Note, there are many comments all around; you'll see as time continued they decreased in quality and quantity. I plan on adding more comments again at a later time, but I currently have other projects I would like to focus on! Everything should be fine to use in production!)
+<p align="center">
+  <a href="https://github.com/Walker-Industries-RnD/PariahCybersecurity"><strong>View on GitHub</strong></a> •
+  <a href="https://walkerindustries.xyz">Walker Industries</a> •
+  <a href="https://discord.gg/H8h8scsxtH">Discord</a> •
+  <a href="https://www.patreon.com/walkerdev">Patreon</a>
+</p>
 
+---
 
-## What's Included?
+## What You Get
 
-🔐 Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption 
+| Feature                          | Status | Description                                                |
+| -------------------------------- | ------ | ---------------------------------------------------------- |
+| Walker.Crypto.AsyncAESEncryption | Done   | AES-256-GCM, async, zero allocation paths                  |
+| JSONDataHandler                  | Done   | Encrypted, tamper-proof JSON with atomic saves             |
+| SecretManager                    | Done   | Local vault with PQC key rotation                          |
+| DataRequest                      | Done   | Zero-trust inter-app data sharing + signed root of trust   |
+| Accounts                         | Done   | Minimalist local auth with recovery keys                   |
+| AccountsWithSessions             | Done   | Full session system with sliding expiry & tamper detection |
+| EasyPQC (Kyber + Dilithium)      | Done   | Drop-in post-quantum signatures & KEM                      |
+| File Packing & Compression       | 95%    | LZ4 + Blake3 + forward secrecy                             |
+| Merging System                   | ---    | Handles syncing data between sessions                      |
 
-📄 JSONDataHandler - A Simple Yet Powerful Method Of Writing, Saving and Getting Data
+> Full feature matrix → [[Find The Right Solution For You!]]
 
-🗝️ SecretManager - A Local Based Secrets Manager
+---
 
-📨 DataRequest - For Creating, Storing and Getting Data Readable By Other Programs Securely
-
-👤 Accounts - A Barebones Example Of A Local Based Account System
-
-🔐 AccountsWithSessions - A Secure, Local Based Account System With Session Verification
-
-
-And Much, Much More!
-
-Check the [Find The Right Solution For You!](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/Find%20The%20Right%20Solution%20For%20You!.html) Page To Learn More! This also acts as the table of contents!  
-You Can Also Use [The Pariah's Codex of Autonomous Instruments](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/The%20Pariah's%20Codex%20of%20Autonomous%20Instruments.html) To View Almost All Pariah Focused Functions!  
-Finally, you can view examples directly within [The Pariah's Grimoire of Applied Functionality](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/The%20Pariah's%20Grimoire%20of%20Applied%20Functionality.html)!
-
-
-
-## How Do I Use It?
-
-Let's say you have some data you want to save, like
+## Quick Start – Save Encrypted Data in 6 Lines
 
 ```csharp
-var YareliGallery = List<Custom.ImageObj>`
+var password = "Yuuko".ToSecureData();
+var DataBin = new List<ImageObj> { /* ... */ };
+
+// Save
+await JSONDataHandler.CreateJsonFile(folder, "AlternativeIV", new JsonObject());
+var json = await JSONDataHandler.LoadJsonFile(folder, "AlternativeIV");
+json = await JSONDataHandler.AddToJson(json, "Schematics", DataBin, password);
+await JSONDataHandler.SaveJson(json);
+
+// Load
+var json2 = await JSONDataHandler.LoadJsonFile(folder, "AlternativeIV");
+var loaded = await JSONDataHandler.GetVariable<List<ImageObj>>(json2, "Schematics", password);
+
 ```
 
-With Pariah Cybersecurity, all you have to do is
 
-``` csharp
-//Create a new Pariah Object on Disc
-await JSONDataHandler.CreateJsonFile(pathToSaveTo, "Yareli Gallery", new JsonObject {} );
-//Load the PariahJSON you just made
-var loadedGalleryFile = await JSONDataHandler.LoadJsonFile(pathToSaveTo, "Yareli Gallery");
-//Add the gallery list to the PariahJson
-var savedGallery = await JSONDataHandler.AddToJson<List<Custom.ImageObj>>(loadedGalleryFile, "Gallery", YareliGallery, Password);
-//Save the PariahJSON
-await JSONDataHandler.SaveJson(savedGallery);
+**More real-world examples → [PariahCybersecTest Repository](https://github.com/Walker-Industries-RnD/PariahCybersecTest)**
+
+---
+
+## Roadmap
+
+| Task                                      | Status       |
+|-------------------------------------------|--------------|
+| Replace `SecureString` with custom impl   | Done         |
+| Remove all default/"Default" keys         | Done         |
+| Switch to `System.Text.Json`              | Done         |
+| Custom `DataRequest` root path            | Done         |
+| Fix final `UnpackFile` edge case          | In Progress  |
+| Release full password manager demo app    | Coming Soon  |
+
+---
+
+## Dependencies (install once)
+
+```bash
+dotnet add package BouncyCastle.NetCore  
+dotnet add package Ceras  
+dotnet add package K4os.Compression.LZ4  
+dotnet add package Konscious.Security.Cryptography.Argon2  
+dotnet add package Newtonsoft.Json  
+dotnet add package EasyCompressor.LZ4  
+dotnet add package Data.HashFunction.Blake3  
+dotnet add package System.Data.HashFunction.Interfaces
+
 ```
-
-Now, whenever you want to get your variable, all you need to do is use
-
-```csharp
-//Load the PariahJson from disc
-var loadedGalleryFile = await JSONDataHandler.LoadJsonFile(pathToSaveTo, "Yareli Gallery");
-//Get the GalleryFile value
-var loadedGallery = await JSONDataHandler.GetVariable<List<Custom.ImageObj>>(loadedGalleryFile, "Gallery", Password);
-```
-
-Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Directory]] and you can see specific examples for the library you'll be using!
-
-## Prerequisites
-
-#### The Following Are Needed To Use All Of Pariah Cybersecurity:
-
-- BouncyCastle.NetCore
-
-- Ceras
-
-- k4os.Compression.LZ4
-
- - Konscious.Security.Cryptography.Argon2
-
-- Newtonsoft.Json
-
-- Parquet.Net
-
-- EasyCompressor.LZ4
-
-- Data.HashFunction.Blake3
-
-- System.Data.HashFunction.Interfaces
-
-
-
-## Changes, Fixes And Future Developments
-
-- [X] Changing SecureString to use a custom char[] or byte[] based system (The current SecureString has a length limit, immediate fix needed)
-- [ ] Fix Pack and Unpack File (Not too important since I can use the AESmethod for now, I might outsource help here )
-- [ ] Readding one of the disabled signatures to the account with session system (Should still be secure without)
-- [ ] Package Dependencies Into Singular DLL
-- [ ] Adding more graceful error handling (Ha, like that's happening)
-- [ ] Releasing Pariah Cybersecurity's password manager as an example
-
 
 ## Special Thanks
 
-- To Kennaness for helping out between making art, hearing my code crash outs and being my development goddess
-- My friends for supporting me through the development process
-- The Walker Industries' community on Discord for their support
+- **Kennaness** – my development muse, art angel, and emotional support artist
+- The Walker Industries Discord – you kept me sane
+- The Developer Of The Original SimpleAESEncryption I Used In Unity Long Ago
+- Everyone who believed in local-first, open-source, unbreakable security
 
+---
 
-## License
-This project is licensed under the [NON-AI Mozilla Public License Version 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0).
+## License & Artwork
 
-All images on this page were created by the artist Kennaness and are displayed here with permission.
+**Code:** [NON-AI MPL 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0)  
+**Artwork:** © Kennaness — **NO AI training. NO reproduction. NO exceptions.**
 
+<img src="https://github.com/Walker-Industries-RnD/Malicious-Affiliation-Ban/blob/main/WIBan.png?raw=true" align="center" style="margin-left: 20px; margin-bottom: 20px;"/>
 
-All artwork displayed on this site was created by the artist Kennaness and is used with express permission.
-These images are provided for viewing purposes only.
-You may not copy, download, distribute, modify, reproduce, use in AI training or datasets, or republish these images in any form — whether for personal, commercial, or non-commercial purposes.
-Use of these images in any machine learning system, dataset, or generative model is strictly prohibited.
-
-Any unauthorized use, including but not limited to reproduction, redistribution, or AI-related use, will  be pursued to the fullest extent permitted under applicable law, including seeking damages, injunctive relief, and legal fees.
-
-
+> Unauthorized use of the artwork — including but not limited to copying, distribution, modification, or inclusion in any machine-learning training dataset — is strictly prohibited and will be prosecuted to the fullest extent of the law.
