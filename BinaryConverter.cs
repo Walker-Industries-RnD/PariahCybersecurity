@@ -1,12 +1,7 @@
-﻿using System;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using Ceras;
 using Newtonsoft.Json.Linq;
-using static Microsoft.IO.RecyclableMemoryStreamManager;
 
 //From https://gist.github.com/LorenzGit/2cd665b6b588a8bb75c1a53f4d6b240a
 
@@ -15,56 +10,11 @@ using static Microsoft.IO.RecyclableMemoryStreamManager;
 ////USING BINARY FORMATTER	
 // Convert an object to a byte array
 
-public class BinaryConverter
+//Updated; we now try with Ceras; if the object type isn't supported, we fall back to JSON serialization. This means we improve performance
+//Whenever possible AND can handle weird custom objects
+
+public static class BinaryConverter
 {
-
-        public static async Task<byte[]> ObjectToByteArrayAsync<T>(T obj, SerializerConfig configs = null)
-        {
-            CerasSerializer Serializer;
-
-            if (configs != null)
-            {
-                Serializer = new CerasSerializer(configs);
-            }
-
-            else
-            {
-                Serializer = new CerasSerializer();
-            }
-
-
-            byte[] data = Serializer.Serialize(obj);
-
-            using var ms = new MemoryStream();
-            await ms.WriteAsync(data, 0, data.Length);
-            return ms.ToArray();
-        }
-
-        public static async Task<T> ByteArrayToObjectAsync<T>(byte[] bytes, SerializerConfig configs = null)
-        {
-            CerasSerializer Serializer;
-
-            if (configs != null)
-            {
-                Serializer = new CerasSerializer(configs);
-            }
-
-            else
-            {
-                Serializer = new CerasSerializer();
-            }
-
-
-            using var ms = new MemoryStream();
-            await ms.WriteAsync(bytes, 0, bytes.Length);
-            ms.Position = 0;
-
-            byte[] buffer = ms.ToArray();
-            return Serializer.Deserialize<T>(buffer);
-        }
-
-
-
     private static readonly JsonSerializerOptions _options = new JsonSerializerOptions
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -75,42 +25,85 @@ public class BinaryConverter
         }
     };
 
-
     public static async Task<byte[]> NCObjectToByteArrayAsync<T>(
         T obj,
+        SerializerConfig? config = null,
         CancellationToken cancellationToken = default)
     {
-        await using var ms = new MemoryStream();
-        await JsonSerializer
-              .SerializeAsync(ms, obj, _options, cancellationToken)
-              .ConfigureAwait(false);
+        try
+        {
+            try
+            {
+                var serializer = config != null ? new CerasSerializer(config) : new CerasSerializer();
+                var data = serializer.Serialize(obj);
+                return data;
+            }
+            catch (Exception cerasEx)
+            {
+                // Fallback to JSON
+                await using var ms = new MemoryStream();
+                await JsonSerializer
+                      .SerializeAsync(ms, obj, _options, cancellationToken)
+                      .ConfigureAwait(false);
+                return ms.ToArray();
+            }
+        }
 
-        return ms.ToArray();
+        catch
+        {
+            throw new Exception("Failed to Convert Object to Byte Array.");
+        }
     }
-
 
     public static async Task<T?> NCByteArrayToObjectAsync<T>(
         byte[] data,
+        SerializerConfig? config = null,
         CancellationToken cancellationToken = default)
     {
-        await using var ms = new MemoryStream(data);
-        return await JsonSerializer
-                     .DeserializeAsync<T>(ms, _options, cancellationToken)
-                     .ConfigureAwait(false);
+        try
+        {
+            // First try Ceras
+            try
+            {
+                var serializer = config != null ? new CerasSerializer(config) : new CerasSerializer();
+                return serializer.Deserialize<T>(data);
+            }
+            catch (Exception cerasEx)
+            {
+                // Fallback to JSON
+                await using var ms = new MemoryStream(data);
+                return await JsonSerializer
+                             .DeserializeAsync<T>(ms, _options, cancellationToken)
+                             .ConfigureAwait(false);
+            }
+        }
+
+        catch
+        {
+            throw new Exception("Failed to Convert Byte Array to Object.");
+        }
     }
 
 
 
-    private class JTokenConverter : JsonConverter<JToken>
+private class JTokenConverter : JsonConverter<JToken>
     {
         public override JToken Read(
             ref Utf8JsonReader reader,
             Type typeToConvert,
             JsonSerializerOptions options)
         {
-            // Parse the JSON fragment into a JsonDocument, then into a JToken.
-            using var doc = JsonDocument.ParseValue(ref reader);
-            return JToken.Parse(doc.RootElement.GetRawText());
+            try
+            {
+                // Parse the JSON fragment into a JsonDocument, then into a JToken.
+                using var doc = JsonDocument.ParseValue(ref reader);
+                return JToken.Parse(doc.RootElement.GetRawText());
+            }
+
+            catch
+            {
+                throw new Exception("Failed to Read JToken.");
+            }
         }
 
         public override void Write(
@@ -118,8 +111,16 @@ public class BinaryConverter
             JToken value,
             JsonSerializerOptions options)
         {
-            // Write the JToken’s raw JSON directly into the Utf8JsonWriter
-            writer.WriteRawValue(value.ToString(Newtonsoft.Json.Formatting.None));
+            try
+            {
+                // Write the JToken’s raw JSON directly into the Utf8JsonWriter
+                writer.WriteRawValue(value.ToString(Newtonsoft.Json.Formatting.None));
+            }
+
+            catch
+            {
+                throw new Exception("Failed to Write JToken.");
+            }
         }
     }
 

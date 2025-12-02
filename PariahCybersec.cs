@@ -1,43 +1,22 @@
-﻿using System.Security;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
-using System.Linq;
-using SecureStringPlus; //More secure strings
 using Walker.Crypto;
-using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Security;
-using Org.BouncyCastle.Crypto.Generators;
-using Org.BouncyCastle.Crypto.Parameters;
 using static Pariah_Cybersecurity.DataHandler.SaltAndHashing;
-using JObject = Newtonsoft.Json.Linq.JObject;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
-using JToken = Newtonsoft.Json.Linq.JToken;
 using Konscious.Security.Cryptography;
-using Parquet.Schema;
-using Parquet.Serialization;
 using File = System.IO.File;
 using System.Text.Json;
 using System.Reflection;
-using Newtonsoft.Json.Linq;
-using System.Globalization;
-
-using System.Runtime.InteropServices;
 using System.Diagnostics;
-using static NBitcoin.WalletPolicies.MiniscriptNode;
-using NBitcoin;
-using System.IO;
-using Org.BouncyCastle.Asn1.Mozilla;
-using static NBitcoin.WalletPolicies.MiniscriptNode.ParameterRequirement;
-using Org.BouncyCastle.Asn1.Crmf;
 using static Walker.Crypto.SimpleAESEncryption;
-using static Pariah_Cybersecurity.DataHandler.AccountsWithSessions;
-using static Pariah_Cybersecurity.EasyPQC;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
+
+using WISecureData;
+
+using SecureData = WISecureData.SecureData;
+using System.Text.Json.Nodes;
 
 
-
-//We no longer use SimpleAESEncryption because it does not adhere to AES256
+//We no longer use SimpleAESEncryption(The one from the older version of the program) because it does not adhere to AES256; the new SimpleAESENcryption is extremely secure
 //It also encrypts everything at once instead of in chunks, which is a HUGE problem memory wise
 
 //We keep the names the same to make using our new code seamless
@@ -51,43 +30,50 @@ namespace Pariah_Cybersecurity
         public static string GeneratePassword(int length, bool includeLowercase, bool includeUppercase,
             bool includeDigits, bool includeSpecialChars)
         {
-            var passBuilder = new StringBuilder();
-
-
-            if (length < 1) throw new ArgumentException("Password length must be greater than 0.");
-
-            if (!includeLowercase && !includeUppercase && !includeDigits && !includeSpecialChars) throw new ArgumentException("Invalid generation inputs.");
-
-            string LowercaseLetters = "abcdefghijklmnopqrstuvwxyz";
-            string UppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            string Digits = "0123456789";
-            string SpecialChars = "!@#$%^&*()-_=+[]{}|;:',.<>?";
-
-            string finalCharset = default;
-
-            if (includeLowercase)
-                finalCharset += LowercaseLetters;
-            if (includeUppercase)
-                finalCharset += UppercaseLetters;
-            if (includeDigits)
-                finalCharset += Digits;
-            if (includeSpecialChars)
-                finalCharset += SpecialChars;
-
-            int maxRange = finalCharset.Length - 1;
-
-
-            for (int i = 0; i < length; i++)
+            try
             {
-                int val = RNGCSP.RollDice((byte)maxRange) - 1;
-                passBuilder.Append(finalCharset[val]);
+                var passBuilder = new StringBuilder();
+
+
+                if (length < 1) throw new ArgumentException("Password length must be greater than 0.");
+
+                if (!includeLowercase && !includeUppercase && !includeDigits && !includeSpecialChars) throw new ArgumentException("Invalid generation inputs.");
+
+                string LowercaseLetters = "abcdefghijklmnopqrstuvwxyz";
+                string UppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                string Digits = "0123456789";
+                string SpecialChars = "!@#$%^&*()-_=+[]{}|;:',.<>?";
+
+                string finalCharset = default;
+
+                if (includeLowercase)
+                    finalCharset += LowercaseLetters;
+                if (includeUppercase)
+                    finalCharset += UppercaseLetters;
+                if (includeDigits)
+                    finalCharset += Digits;
+                if (includeSpecialChars)
+                    finalCharset += SpecialChars;
+
+                int maxRange = finalCharset.Length - 1;
+
+
+                for (int i = 0; i < length; i++)
+                {
+                    int val = RNGCSP.RollDice((byte)maxRange) - 1;
+                    passBuilder.Append(finalCharset[val]);
+                }
+
+                string generatedPass = passBuilder.ToString();
+
+                return generatedPass;
+
             }
 
-            string generatedPass = passBuilder.ToString();
-
-            return generatedPass;
-
-
+            catch
+            {
+                throw new Exception("Password Generation Failed");
+            }
 
         }
 
@@ -106,9 +92,9 @@ namespace Pariah_Cybersecurity
             {
                 public string FileName { get; private set; }
                 public string FilePath { get; internal set; }
-                public JObject Data { get; private set; }
+                public JsonObject Data { get; private set; }
 
-                public PariahJSON(string fileName, string filePath, JObject data)
+                public PariahJSON(string fileName, string filePath, JsonObject data)
                 {
                     FileName = fileName;
                     FilePath = filePath;
@@ -117,7 +103,7 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public static async Task CreateJsonFile(string Filename, string FileLocation, JObject defaultData)
+            public static async Task CreateJsonFile(string Filename, string FileLocation, JsonObject defaultData)
             {
                 try
                 {
@@ -128,7 +114,7 @@ namespace Pariah_Cybersecurity
 
                     if (File.Exists(finalPathLocation)) { throw new Exception($"File with name already exists in directory, filepath is {finalPathLocation}."); }
 
-                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JObject>(defaultData);
+                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JsonObject>(defaultData);
 
                     await EasyPQC.WriteAllBytesAsync(finalPathLocation, data, null);
 
@@ -160,105 +146,150 @@ namespace Pariah_Cybersecurity
 
                     var file = await FileAsync.ReadAllBytes(finalPathLocation); // Remember the bytes are already JSON  
 
-                    // Deserialize the byte array into a JObject  
-                    var data = JsonConvert.DeserializeObject<JObject>(Encoding.UTF8.GetString(file));
+                    // Deserialize the byte array into a JsonObject  
+                    var data = await BinaryConverter.NCByteArrayToObjectAsync<JsonObject>(file);
 
                     PariahJSON pariahJSON = new PariahJSON(Filename, FileLocation, data);
 
                     return pariahJSON;
                 }
-                catch
+                catch(Exception ex)
                 {
-                    throw new Exception("An error has occurred when reading the file. Please check your file reading permissions.");
+                    throw new Exception($"An error has occurred when reading the file. Please check your file reading permissions:  {ex.Message}", ex);
                 }
             }
 
             //Add conditionals later(?)
 
-            public static async Task<PariahJSON> AddToJson<T>(PariahJSON JsonData, string dataName, object data, SecureString? Key)
+            public static async Task<PariahJSON> AddToJson<T>(PariahJSON JsonData, string dataName, object data, SecureData Key)
             {
-                JObject editedData = JsonData.Data;
-
-                if (Key == null)
+                try
                 {
-                    Key = "skibidi".ToSecureString(true);
+                    JsonObject editedData = JsonData.Data;
+
+                    if (Key == null)
+                    {
+throw new Exception ("Invalid Key Input");
+                    }
+
+                    var newJsonData = await DataEncryptions.PackData<T>(data, (SecureData)Key);
+
+                    editedData.Add(dataName, newJsonData);
+
+                    PariahJSON finalPJ = new PariahJSON(JsonData.FileName, JsonData.FilePath, editedData);
+
+                    return finalPJ;
                 }
 
-                var newJsonData = await DataEncryptions.PackData<T>(data, Key);
-
-                editedData.Add(dataName, newJsonData);
-
-                PariahJSON finalPJ = new PariahJSON(JsonData.FileName, JsonData.FilePath, editedData);
-
-                return finalPJ;
+                catch(Exception ex)
+                {
+                    throw new Exception($"An error occurred while adding data to the JSON:  {ex.Message}", ex);
+                }
 
             }
 
             public static PariahJSON DeletefromJson(PariahJSON JsonData, string dataName)
             {
-                JObject editedData = JsonData.Data;
-
-                editedData.Remove(dataName);
-
-                PariahJSON finalPJ = new PariahJSON(JsonData.FileName, JsonData.FilePath, editedData);
-
-                return finalPJ;
-            }
-
-            public static async Task<PariahJSON> UpdateJson<T>(PariahJSON JsonData, string dataName, object data, SecureString? Key)
-            {
-                JObject editedData = JsonData.Data;
-
-                editedData.Remove(dataName);
-
-
-                if (Key == null)
+                try
                 {
-                    Key = "skibidi".ToSecureString(true);
+                    JsonObject editedData = JsonData.Data;
+
+                    editedData.Remove(dataName);
+
+                    PariahJSON finalPJ = new PariahJSON(JsonData.FileName, JsonData.FilePath, editedData);
+
+                    return finalPJ;
                 }
 
-                var newJsonData = await DataEncryptions.PackData<T>(data, Key);
+                catch (Exception ex)
+                {
 
-                editedData.Add(dataName, newJsonData);
-
-                PariahJSON finalPJ = new PariahJSON(JsonData.FileName, JsonData.FilePath, editedData);
-
-                return finalPJ;
+                    throw new Exception($"An Error Occured while deleting data from the JSON:  {ex.Message}", ex);
+                    
+                }
             }
 
-            public static async Task<object> GetVariable<T>(PariahJSON JsonData, string dataName, SecureString? Key)
+            public static async Task<PariahJSON> UpdateJson<T>(PariahJSON JsonData, string dataName, object data, SecureData Key)
             {
-                JObject editedData = JsonData.Data;
 
-                if (!editedData.TryGetValue(dataName, out var token) || token.Type != JTokenType.String)
-                    throw new Exception($"Invalid or missing string for key '{dataName}'.");
-
-                string item = token.Value<string>()!;
-
-                if (Key == null)
+                try
                 {
-                    Key = "skibidi".ToSecureString(true);
+                    JsonObject editedData = JsonData.Data;
+
+                    editedData.Remove(dataName);
+
+
+                    if (Key == null)
+                    {
+throw new Exception ("Invalid Key Input");
+                    }
+
+                    var newJsonData = await DataEncryptions.PackData<T>(data, (SecureData)Key);
+
+                    editedData.Add(dataName, newJsonData);
+
+                    PariahJSON finalPJ = new PariahJSON(JsonData.FileName, JsonData.FilePath, editedData);
+
+                    return finalPJ;
                 }
 
-                var returnObject = await DataEncryptions.UnpackData(item, Key);
+                catch (Exception ex)
+                {
+                    throw new Exception($"An Error Occured while updating the JSON:  {ex.Message}", ex);
+                }
+            }
 
-                return returnObject;
+            public static async Task<object> GetVariable<T>(PariahJSON JsonData, string dataName, SecureData Key)
+            {
+                try
+                {
+                    JsonObject editedData = JsonData.Data;
+
+                    if (!editedData.TryGetPropertyValue(dataName, out var node) || node is not JsonValue value || value.TryGetValue<string>(out var str) == false)
+                        throw new Exception($"Invalid or missing string for key '{dataName}'.");
+
+
+                    string item = node!.GetValue<string>();
+
+                    if (Key == null)
+                    {
+throw new Exception ("Invalid Key Input");
+                    }
+
+                    var returnObject = await DataEncryptions.UnpackData(item, (SecureData)Key);
+
+                    return returnObject;
+                }
+
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error occurred while getting the variable:  {ex.Message}", ex);
+                }
             }
 
             public static async Task<bool> CheckIfVariableExists(PariahJSON JsonData, string dataName)
             {
-                JObject editedData = JsonData.Data;
-                if (editedData.TryGetValue(dataName, out var token))
+                try
                 {
-                    return token.Type == JTokenType.String;
+                    JsonObject editedData = JsonData.Data;
+                    if (editedData.TryGetPropertyValue(dataName, out JsonNode? node))
+                    {
+                        return node is JsonValue val && val.TryGetValue<string>(out _);
+                    }
+                    return false;
                 }
-                return false;
+
+                catch (Exception ex)
+                {
+                    throw new Exception($"An Error Occured while checking if the variable exists:  {ex.Message}", ex);
+                }
+
             }
 
 
             public static async Task SaveJson(PariahJSON JsonData)
             {
-                JObject source = JsonData.Data;
+                JsonObject source = JsonData.Data;
                 string Filename = JsonData.FileName;
                 string FileLocation = JsonData.FilePath;
 
@@ -267,13 +298,15 @@ namespace Pariah_Cybersecurity
                     //Check program ability to create file at location (location+name)
                     string finalPathLocation = Path.Combine(FileLocation, Filename + ".json");
 
-                    if (Directory.Exists(FileLocation) == false) { throw new Exception("The file directory does not exist."); };
+                    if (Directory.Exists(FileLocation) == false) { throw new Exception("The file directory does not exist."); }
+                    ;
 
-                    if (File.Exists(finalPathLocation) == false) { throw new Exception("File with name does not existt in directory"); };
+                    if (File.Exists(finalPathLocation) == false) { throw new Exception("File with name does not existt in directory"); }
+                    ;
 
                     //Now that we checked those conditionals, let's update the JSON!
 
-                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JObject>(JsonData.Data);
+                    var data = await BinaryConverter.NCObjectToByteArrayAsync<JsonObject>(JsonData.Data);
 
                     await EasyPQC.WriteAllBytesAsync(finalPathLocation, data, null);
 
@@ -312,56 +345,78 @@ namespace Pariah_Cybersecurity
             {
                 private static readonly SecureRandom CryptoRandom = new SecureRandom();
 
-                public static async Task<PasswordCheckData> GeneratePasswordHashAsync(SecureString password, int iterations = 4, int saltByteSize = 64, int hashByteSize = 128)
+                public static async Task<PasswordCheckData> GeneratePasswordHashAsync(SecureData password, int iterations = 4, int saltByteSize = 64, int hashByteSize = 128)
                 {
-                    return await Task.Run(async () =>
+                    try
                     {
-                        byte[] saltBytes = new byte[saltByteSize];
-                        CryptoRandom.NextBytes(saltBytes);
-
-                        var hash = await Argon2_GetHashAsync(password, saltBytes, iterations, hashByteSize);
-
-                        var passcheckdata = new PasswordCheckData(
-                            Convert.ToBase64String(saltBytes),
-                            Convert.ToBase64String(hash)
-                        );
-
-                        return passcheckdata;
-                    });
-                }
-
-                public static async Task<bool> ValidatePasswordAsync(SecureString password, PasswordCheckData passValues, int iterations = 4, int hashByteSize = 128)
-                {
-                    return await Task.Run(async () =>
-                    {
-                        string saltAsBase64 = passValues.SaltKey;
-                        string hashAsBase64 = passValues.HashKey;
-
-                        byte[] saltBytes = Convert.FromBase64String(saltAsBase64);
-                        byte[] expectedHashBytes = Convert.FromBase64String(hashAsBase64);
-
-                        var computedHashBytes = await Argon2_GetHashAsync(password, saltBytes, iterations, hashByteSize);
-
-                        return SlowEquals(expectedHashBytes, computedHashBytes);
-                    });
-                }
-
-                private static async Task<byte[]> Argon2_GetHashAsync(SecureString password, byte[] salt, int iterations, int hashByteSize)
-                {
-                    return await Task.Run(() =>
-                    {
-                        var bytes = UTF8Encoding.UTF8.GetBytes(password.ConvertToString());
-
-                        var argon2id = new Argon2id(bytes)
+                        return await Task.Run(async () =>
                         {
-                            Salt = salt,
-                            DegreeOfParallelism = 1,
-                            Iterations = iterations,
-                            MemorySize = 8192
-                        };
+                            byte[] saltBytes = new byte[saltByteSize];
+                            CryptoRandom.NextBytes(saltBytes);
 
-                        return argon2id.GetBytes(hashByteSize);
-                    });
+                            var hash = await Argon2_GetHashAsync(password, saltBytes, iterations, hashByteSize);
+
+                            var passcheckdata = new PasswordCheckData(
+                                Convert.ToBase64String(saltBytes),
+                                Convert.ToBase64String(hash)
+                            );
+
+                            return passcheckdata;
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"Password Hash Generation Failed: {ex.Message}", ex);
+                    }
+                }
+
+                public static async Task<bool> ValidatePasswordAsync(SecureData password, PasswordCheckData passValues, int iterations = 4, int hashByteSize = 128)
+                {
+                    try
+                    {
+                        return await Task.Run(async () =>
+                        {
+                            string saltAsBase64 = passValues.SaltKey;
+                            string hashAsBase64 = passValues.HashKey;
+
+                            byte[] saltBytes = Convert.FromBase64String(saltAsBase64);
+                            byte[] expectedHashBytes = Convert.FromBase64String(hashAsBase64);
+
+                            var computedHashBytes = await Argon2_GetHashAsync(password, saltBytes, iterations, hashByteSize);
+
+                            return SlowEquals(expectedHashBytes, computedHashBytes);
+                        });
+                    }
+
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"Password Validation Failed: {ex.Message}", ex);
+                    }
+                }
+
+                private static async Task<byte[]> Argon2_GetHashAsync(SecureData password, byte[] salt, int iterations, int hashByteSize)
+                {
+                    try
+                    {
+                        return await Task.Run(() =>
+                        {
+                            var bytes = UTF8Encoding.UTF8.GetBytes(password.ConvertToString());
+
+                            var argon2id = new Argon2id(bytes)
+                            {
+                                Salt = salt,
+                                DegreeOfParallelism = 1,
+                                Iterations = iterations,
+                                MemorySize = 8192
+                            };
+
+                            return argon2id.GetBytes(hashByteSize);
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"Argon2 Hashing Failed: {ex.Message}", ex);
+                    }
                 }
 
 
@@ -382,7 +437,7 @@ namespace Pariah_Cybersecurity
 
 
         //Thank you to https://stackoverflow.com/questions/34950611/how-to-create-a-pbkdf2-sha256-password-hash-in-c-sharp-bouncy-castle for BouncyCastleHashing, I should stop being lazy and add summaries too
-  
+
         //Integrate logic from UserAuth
 
 
@@ -396,7 +451,7 @@ namespace Pariah_Cybersecurity
                 IncludeFields = true
             };
 
-            public static async Task<string> PackData<T>(object data, SecureString Key)
+            public static async Task<string> PackData<T>(object data, SecureData Key)
             {
                 byte[] payloadBytes = await BinaryConverter.NCObjectToByteArrayAsync<T>((T)data);
                 var wrapper = (typeof(T).AssemblyQualifiedName!, payloadBytes);
@@ -409,11 +464,11 @@ namespace Pariah_Cybersecurity
                 return encrypted.ToString();
             }
 
-            public static async Task<object> UnpackData(string data, SecureString Key)
+            public static async Task<object> UnpackData(string data, SecureData Key)
             {
                 try
                 {
-                    var aesEncryptedText = SimpleAESEncryption.AESEncryptedText.FromUTF8String(data);
+                    var aesEncryptedText = SimpleAESEncryption.AESEncryptedText.FromString(data);
                     string wrapperB64 = SimpleAESEncryption.Decrypt(aesEncryptedText, Key)
                                                       .ConvertToString();
 
@@ -434,7 +489,7 @@ namespace Pariah_Cybersecurity
                                    BindingFlags.Public | BindingFlags.Static)!
                         .MakeGenericMethod(type);
 
-                    var task = (Task)method.Invoke(null, new object[] { payload, CancellationToken.None })!;
+                    var task = (Task)method.Invoke(null, new object[] { payload, null, CancellationToken.None })!;
                     await task.ConfigureAwait(false);
 
                     return task.GetType().GetProperty("Result")!.GetValue(task)!;
@@ -446,7 +501,6 @@ namespace Pariah_Cybersecurity
                 }
             }
         }
-
 
         public static class SecretManager
         {
@@ -470,10 +524,10 @@ namespace Pariah_Cybersecurity
             public class PublicKeyFileInit
             {
                 public string SecretName { get; internal set; }
-                public SecureString Value { get; internal set; }
-                public SecureString? SecretPath { get; internal set; } //Do NOT include a name here
+                public SecureData Value { get; internal set; }
+                public SecureData? SecretPath { get; internal set; } //Do NOT include a name here
 
-                public PublicKeyFileInit(string secretName, SecureString? secretPath, SecureString value)
+                public PublicKeyFileInit(string secretName, SecureData? secretPath, SecureData value)
                 {
                     SecretName = secretName;
                     SecretPath = secretPath;
@@ -486,20 +540,16 @@ namespace Pariah_Cybersecurity
             //PublicKeyFiles = string Name, string Keyfile Location (Encrypted?)
             //Account = Just use Accounts.CreateUser/Login
 
-            //PublicDecryptKey should be a SecureString as an input, not a String
-            public async static Task CreateBank(string BankDirectory, string BankName, List<PublicKeyFileInit>? PublicKeys, string? PublicDecryptKey)
+            //PublicDecryptKey should be a SecureData as an input, not a String
+            public async static Task CreateBank(string BankDirectory, string BankName, List<PublicKeyFileInit>? PublicKeys, string? SharedSecretKey)
             {
                 //You can (and should) generally create PublicDecryptKey as null, unless you are making a software specific "public" key (which might be better just being a secret but I digress
                 //Whenever PublicKeyFileInit.SecretPath is null, the BankDirectory is used; PublicKeyFileInit.Key is automatically encrypted with PubliccDecryptKey
 
                 //First up let's set PublicDecryptKey
-                if (PublicDecryptKey == null)
-                {
-                    PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
-                }
-
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
-
+   
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                
                 //Now we see if a Bank with the same name exists at the path we selected
 
                 if (await CheckIfBankExists(BankDirectory, BankName))
@@ -522,11 +572,11 @@ namespace Pariah_Cybersecurity
                     {
                         //First create the variables 
 
-                        SecureString savepath = BankDirectory.ToSecureString(true);
+                        SecureData savepath = BankDirectory.ToSecureData();
 
                         if (item.SecretPath != null)
                         {
-                            savepath = item.SecretPath;
+                            savepath = (SecureData)item.SecretPath;
                         }
 
                         var finalPath = SimpleAESEncryption.Encrypt(savepath.ConvertToString(), keyToUseAsPassword);
@@ -535,7 +585,7 @@ namespace Pariah_Cybersecurity
 
                         //Create the file
 
-                        var secretData = new JObject
+                        var secretData = new JsonObject
                         {
                             ["Secret Name"] = item.SecretName,
                         };
@@ -560,7 +610,7 @@ namespace Pariah_Cybersecurity
                 //Create the bank save file
 
 
-                var bankOpeningData = new JObject
+                var bankOpeningData = new JsonObject
                 {
                     ["Bank Name"] = BankName
                 };
@@ -582,21 +632,13 @@ namespace Pariah_Cybersecurity
             }
 
             //Gets a public secret by finding the path within the secret bank, going to the file and decrypting the value, add SecretDecryptKey to everything
-            public static async Task<SecureString> GetPublicSecret(string BankDirectory, string BankName, string PublicSecretName, string? PublicDecryptKey, string? SecretDecryptKey)
+            public static async Task<SecureData> GetPublicSecret(string BankDirectory, string BankName, string PublicSecretName, string SharedSecretKey)
             {
                 //First up let's set PublicDecryptKey
-                if (PublicDecryptKey == null)
-                {
-                    PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
-                }
 
-                if (SecretDecryptKey == null)
-                {
-                    SecretDecryptKey = PublicDecryptKey;
-                }
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
-                var keyToUseAsSecretPassword = SecretDecryptKey.ToSecureString(true);
+
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -625,29 +667,25 @@ namespace Pariah_Cybersecurity
                 //Now to get the actual value from the main file
                 //IDK why I have to do all this to make the thing work, but it does so i'm not going to change it
 
-                var finalPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(secretToGet.SecretPath), keyToUseAsSecretPassword).ConvertToString();
+                var finalPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(secretToGet.SecretPath), keyToUseAsPassword).ConvertToString();
 
                 var jsonWithKey = await JSONDataHandler.LoadJsonFile(secretToGet.SecretName, finalPath);
 
 
-                var returnedVal = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Secret Value", keyToUseAsSecretPassword);
+                var returnedVal = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Secret Value", keyToUseAsPassword);
 
-                var decryptedVal = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(returnedVal), keyToUseAsSecretPassword);
+                var decryptedVal = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(returnedVal), keyToUseAsPassword);
 
                 return decryptedVal;
 
 
             }
 
-            public static async Task<int> GetSecretRound(string BankDirectory, string BankName, string PublicSecretName, string? PublicDecryptKey)
+            public static async Task<int> GetSecretRound(string BankDirectory, string BankName, string PublicSecretName, string SharedSecretKey)
             {
                 //First up let's set PublicDecryptKey
-                if (PublicDecryptKey == null)
-                {
-                    PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
-                }
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -675,14 +713,14 @@ namespace Pariah_Cybersecurity
                 //Now to get the actual value from the main file
                 //IDK why I have to do all this to make the thing work, but it does so i'm not going to change it
 
-                var finalPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(secretToGet.SecretPath), keyToUseAsPassword).ConvertToString();
+                var finalPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(secretToGet.SecretPath), keyToUseAsPassword).ConvertToString();
 
                 var jsonWithKey = await JSONDataHandler.LoadJsonFile(secretToGet.SecretName, finalPath);
 
 
                 var returnedVal = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Pneumentations", keyToUseAsPassword);
 
-                var decryptedVal = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(returnedVal), keyToUseAsPassword);
+                var decryptedVal = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(returnedVal), keyToUseAsPassword);
 
                 var decryptedValParsedToInt = int.Parse(decryptedVal.ConvertToString());
 
@@ -691,15 +729,11 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public static async Task AddPublicSecret(string BankDirectory, string BankName, PublicKeyFileInit PublicSecret, string? PublicDecryptKey)
+            public static async Task AddPublicSecret(string BankDirectory, string BankName, PublicKeyFileInit PublicSecret, string SharedSecretKey)
             {
                 //First up let's set PublicDecryptKey
-                if (PublicDecryptKey == null)
-                {
-                    PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
-                }
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -708,11 +742,11 @@ namespace Pariah_Cybersecurity
                 //Now to add the actual value to the main file
 
 
-                SecureString savepath = BankDirectory.ToSecureString(true);
+                SecureData savepath = BankDirectory.ToSecureData();
 
                 if (PublicSecret.SecretPath != null)
                 {
-                    savepath = PublicSecret.SecretPath;
+                    savepath = (SecureData)PublicSecret.SecretPath;
                 }
 
                 var finalPath = SimpleAESEncryption.Encrypt(savepath.ConvertToString(), keyToUseAsPassword);
@@ -721,7 +755,7 @@ namespace Pariah_Cybersecurity
 
                 //Create the file
 
-                var secretData = new JObject
+                var secretData = new JsonObject
                 {
                     ["Secret Name"] = PublicSecret.SecretName,
                 };
@@ -745,14 +779,9 @@ namespace Pariah_Cybersecurity
 
             }
 
-            public static async Task DeletePublicSecret(string BankDirectory, string BankName, string PublicSecretName, string? PublicDecryptKey)
+            public static async Task DeletePublicSecret(string BankDirectory, string BankName, string PublicSecretName, string SharedSecretKey)
             {
-                if (PublicDecryptKey == null)
-                {
-                    PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); // Use motherboard serial as default key
-                }
-
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
 
                 //Load the main bank JSON
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
@@ -782,7 +811,7 @@ namespace Pariah_Cybersecurity
                 listOfPublicKeyFile.Remove(secretToDelete);
 
                 //Delete the actual secret file
-                var decryptedPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(secretToDelete.SecretPath), keyToUseAsPassword).ConvertToString();
+                var decryptedPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(secretToDelete.SecretPath), keyToUseAsPassword).ConvertToString();
                 var filePath = Path.Combine(decryptedPath, $"{PublicSecretName}.json");
 
                 if (File.Exists(filePath))
@@ -795,14 +824,10 @@ namespace Pariah_Cybersecurity
                 await JSONDataHandler.SaveJson(fileToSave);
             }
 
-            public static async Task<List<string>> GetAllSecretNames(string BankDirectory, string BankName, string? PublicDecryptKey)
+            public static async Task<List<string>> GetAllSecretNames(string BankDirectory, string BankName, string SharedSecretKey)
             {
-                if (PublicDecryptKey == null)
-                {
-                    PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); // Use motherboard serial as default key
-                }
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -820,18 +845,14 @@ namespace Pariah_Cybersecurity
             }
 
             //Enter a value into newSalt if you want to reset pneumentations to 0 with a new salt
-            public static async Task<SecureString> RotateSecret(string BankDirectory, string BankName, string PublicSecretName, string? salt, string? PublicDecryptKey, string? newSalt)
+            public static async Task<SecureData> RotateSecret(string BankDirectory, string BankName, string PublicSecretName,  string SharedSecretKey, string? salt, string? newSalt)
             {
-                var secretToRotate = await GetPublicSecret(BankDirectory, BankName, PublicSecretName, PublicDecryptKey, PublicDecryptKey);
+                var secretToRotate = await GetPublicSecret(BankDirectory, BankName, PublicSecretName, SharedSecretKey);
 
                 var pqClass = new EasyPQC.Rotation();
 
-                if (PublicDecryptKey == null)
-                {
-                    PublicDecryptKey = await DeviceIdentifier.GetBoardSerialAsync(); //We will use the motherboard's serial key as the publicdecryptkey by default
-                }
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
 
-                var keyToUseAsPassword = PublicDecryptKey.ToSecureString(true);
 
                 if (salt == null && newSalt == null)
                 {
@@ -847,7 +868,7 @@ namespace Pariah_Cybersecurity
 
                 if (newSalt == null)
                 {
-                    rotations = await GetSecretRound(BankDirectory, BankName, PublicSecretName, PublicDecryptKey);
+                    rotations = await GetSecretRound(BankDirectory, BankName, PublicSecretName, SharedSecretKey);
 
                 }
 
@@ -870,7 +891,7 @@ namespace Pariah_Cybersecurity
 
                 }
 
-                var finalPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(secretToGet.SecretPath), keyToUseAsPassword).ConvertToString();
+                var finalPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(secretToGet.SecretPath), keyToUseAsPassword).ConvertToString();
 
                 var jsonWithKey = await JSONDataHandler.LoadJsonFile(secretToGet.SecretName, finalPath);
 
@@ -884,20 +905,16 @@ namespace Pariah_Cybersecurity
 
                 await JSONDataHandler.SaveJson(jsonWithUpdatedPneu);
 
-                return secretRotated.ToSecureString(true);
+                return secretRotated.ToSecureData();
 
             }
 
             //Migrate is a WIP function which should NOT be used yet
-            public static async Task MigratePublicSecrets(string BankDirectory, string BankName, Dictionary<string, (SecureString? OldPassword, SecureString? NewPassword, string NewPath)> secretMigrations, string newBankDirPath,
-                string? NewFileDirectoryPath, SecureString OldPublicDecryptKey, SecureString? NewPublicDecryptKey)
+            public static async Task MigratePublicSecrets(string BankDirectory, string BankName, Dictionary<string, (SecureData? OldPassword, SecureData? NewPassword, string NewPath)> secretMigrations, string newBankDirPath,
+                string? NewFileDirectoryPath, SecureData OldPublicDecryptKey, SecureData? SharedSecretKey)
             {
                 // Use default key if none provided
-                if (NewPublicDecryptKey == null)
-                {
-                    var temp = await DeviceIdentifier.GetBoardSerialAsync();
-                    NewPublicDecryptKey = temp.ToSecureString();
-                }
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey.ToString()); //We will use the motherboard's serial key as the publicdecryptkey by default
 
                 // Load main bank file using OldPublicDecryptKey
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
@@ -928,33 +945,33 @@ namespace Pariah_Cybersecurity
 
                     if (newPassword == null)
                     {
-                        newPassword = NewPublicDecryptKey;
+                        newPassword = keyToUseAsPassword;
                     }
 
                     //Let's get the file with the stuff we need
-                    var decryptedPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(secretFile.SecretPath), oldPassword).ConvertToString();
+                    var decryptedPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(secretFile.SecretPath), (SecureData)oldPassword).ConvertToString();
                     var jsonWithKey = await JSONDataHandler.LoadJsonFile(secretFile.SecretName, decryptedPath);
 
                     // Decrypt the actual values
-                    var encryptedSecretValueStr = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Secret Value", oldPassword);
-                    var encryptedPneumentationsStr = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Pneumentations", oldPassword);
+                    var encryptedSecretValueStr = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Secret Value", (SecureData)oldPassword);
+                    var encryptedPneumentationsStr = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Pneumentations", (SecureData)oldPassword);
 
                     //Remember, the strings we saved are SimpleAESEncryption.AESEncryptedText converted to text with the .ToString() method
-                    var decryptedSecretValue = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(encryptedSecretValueStr), oldPassword);
-                    var decryptedPneumentations = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(encryptedPneumentationsStr), oldPassword);
+                    var decryptedSecretValue = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(encryptedSecretValueStr), (SecureData)oldPassword);
+                    var decryptedPneumentations = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(encryptedPneumentationsStr), (SecureData)oldPassword);
 
                     // Parse decrypted values
                     string secretString = decryptedSecretValue.ConvertToString();
                     int pneumentationCount = int.Parse(decryptedPneumentations.ConvertToString());
 
                     // Encrypt with new password
-                    var newEncryptedSecret = SimpleAESEncryption.Encrypt(secretString, newPassword).ToString();
-                    var newEncryptedPneumentation = SimpleAESEncryption.Encrypt(pneumentationCount.ToString(), newPassword).ToString();
+                    var newEncryptedSecret = SimpleAESEncryption.Encrypt(secretString, (SecureData)newPassword).ToString();
+                    var newEncryptedPneumentation = SimpleAESEncryption.Encrypt(pneumentationCount.ToString(), (SecureData)newPassword).ToString();
 
                     // If NewPath is empty, we use newBankDirectoryPath
                     var newSavePath = newPath ?? NewFileDirectoryPath; //WE LOVE ?? CHECKS
 
-                    var updatedJson = new JObject
+                    var updatedJson = new JsonObject
                     {
                         ["Secret Name"] = secretFile.SecretName,
 
@@ -964,24 +981,24 @@ namespace Pariah_Cybersecurity
 
                     var loadedJson2 = await JSONDataHandler.LoadJsonFile(secretFile.SecretName, NewFileDirectoryPath);
 
-                    var sValue = await JSONDataHandler.AddToJson<string>(loadedJson2, "Secret Value", newEncryptedSecret, newPassword);
+                    var sValue = await JSONDataHandler.AddToJson<string>(loadedJson2, "Secret Value", newEncryptedSecret, (SecureData)newPassword);
 
-                    var pneuValue = await JSONDataHandler.AddToJson<string>(sValue, "Pneumentations", newEncryptedPneumentation, newPassword);
+                    var pneuValue = await JSONDataHandler.AddToJson<string>(sValue, "Pneumentations", newEncryptedPneumentation, (SecureData)newPassword);
 
                     await JSONDataHandler.SaveJson(pneuValue);
 
                     // Update the path in bank
 
-                    var newEncryptedPath = SimpleAESEncryption.Encrypt(newSavePath, newPassword);
-                    secretFile.SecretPath = SimpleAESEncryption.Encrypt(newEncryptedPath.ToString(), newPassword).ToString();
+                    var newEncryptedPath = SimpleAESEncryption.Encrypt(newSavePath, (SecureData)newPassword);
+                    secretFile.SecretPath = SimpleAESEncryption.Encrypt(newEncryptedPath.ToString(), (SecureData)newPassword).ToString();
 
                 }
 
                 // Save updated bank as a new bank in a new location
                 var bankName = loadedJson.FileName;
-                await CreateBank(newBankDirPath, bankName, null, NewPublicDecryptKey.ConvertToString());
+                await CreateBank(newBankDirPath, bankName, null, keyToUseAsPassword.ToString());
                 var fileToUserp = await JSONDataHandler.LoadJsonFile(BankName, newBankDirPath);
-                var finalizedFile = await JSONDataHandler.UpdateJson<List<PublicKeyFile>>(fileToUserp, "PublicSecrets", listOfPublicKeyFile, NewPublicDecryptKey);
+                var finalizedFile = await JSONDataHandler.UpdateJson<List<PublicKeyFile>>(fileToUserp, "PublicSecrets", listOfPublicKeyFile, keyToUseAsPassword);
 
                 await JSONDataHandler.SaveJson(finalizedFile);
             }
@@ -997,68 +1014,37 @@ namespace Pariah_Cybersecurity
         }
 
 
-
-
-        class DeviceIdentifier
+        public static class DeviceIdentifier
         {
-            public static async Task<string> GetBoardSerialAsync()
+
+            private static SecureData? _cachedUserBoundSecret;
+
+ 
+            public static SecureData GetUserBoundMasterSecret(string xruiosUserId)
             {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    return await RunCommandAsync("wmic", "baseboard get serialnumber");
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    return await RunCommandAsync("cat", "/sys/class/dmi/id/board_serial");
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    return await RunCommandAsync("ioreg", "-l | awk -F'\"' '/IOPlatformSerialNumber/ {print $4}'");
-                }
-                else
-                {
-                    return "Unsupported OS";
-                }
+                if (string.IsNullOrWhiteSpace(xruiosUserId))
+                    throw new ArgumentException("XRUIOS User ID cannot be empty");
+
+                // Normalise exactly the way you want (case-insensitive + trimmed is usual)
+                string normalisedId = xruiosUserId.Trim().ToLowerInvariant();
+
+                return _cachedUserBoundSecret ??= DeriveSecretFromMasterPassword(normalisedId);
             }
 
-            private static async Task<string> RunCommandAsync(string fileName, string arguments)
+            private static SecureData DeriveSecretFromMasterPassword(string password)
             {
-                try
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
+                const string Salt = "XRUIOS-Vault-2025-v1"; // still public
+                byte[] key = Rfc2898DeriveBytes.Pbkdf2(
+                    password: Encoding.UTF8.GetBytes(password),
+                    salt: Encoding.UTF8.GetBytes(Salt),
+                    iterations: 600_000,
+                    hashAlgorithm: HashAlgorithmName.SHA512,
+                    outputLength: 32);
 
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        psi.FileName = fileName;
-                        psi.Arguments = arguments;
-                    }
-                    else
-                    {
-                        psi.FileName = "/bin/bash";
-                        psi.Arguments = $"-c \"{fileName} {arguments}\"";
-                    }
-
-                    using var process = new Process { StartInfo = psi };
-                    process.Start();
-
-                    var output = await process.StandardOutput.ReadToEndAsync();
-                    await process.WaitForExitAsync();
-
-                    var result = output.Trim().Split('\n');
-                    return result.Length > 0 ? result[^1].Trim() : "Unknown";
-                }
-                catch (Exception ex)
-                {
-                    return $"Error: {ex.Message}";
-                }
+                // Zero the password from memory immediately
+                Array.Clear(Encoding.UTF8.GetBytes(password), 0, password.Length);
+                return new SecureData(key);
             }
-
         }
 
 
@@ -1067,7 +1053,7 @@ namespace Pariah_Cybersecurity
 
             public static class SecuritySettings
             {
-                public static SecureString PublicKey { get; private set; }
+                public static SecureData PublicKey { get; private set; }
                 public static double ExpiryDuration { get; private set; }
                 public static double TrustedExpiryDuration { get; private set; }
                 public static int FailRecoveryCheck { get; private set; }
@@ -1076,17 +1062,17 @@ namespace Pariah_Cybersecurity
                 // Static constructor
                 static SecuritySettings()
                 {
-                    PublicKey = "Default".ToSecureString(true);
+                    PublicKey = "Default".ToSecureData();
                     ExpiryDuration = 540;
                     TrustedExpiryDuration = 20160;
                     FailRecoveryCheck = 5;
                     TimeToNextRecovery = 20;
                 }
 
-                public static void SetPublicKey(string newKey, bool makeReadOnly = true)
+                public static void SetPublicKey(string newKey)
                 {
-                    PublicKey.Dispose(); // Don't forget to clean up old SecureString!
-                    PublicKey = newKey.ToSecureString(makeReadOnly);
+                    PublicKey.Dispose(); // Don't forget to clean up old SecureData!
+                    PublicKey = newKey.ToSecureData();
                 }
 
                 public static void SetExpiryDuration(double minutes)
@@ -1198,24 +1184,7 @@ namespace Pariah_Cybersecurity
                 }
             }
 
-            public static async Task<bool> IsFileWithinDirectoryAsync(string filePath, string baseDirectory)
-            {
-                return await Task.Run(() =>
-                {
-                    try
-                    {
-                        var fullFilePath = Path.GetFullPath(filePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                        var fullBasePath = Path.GetFullPath(baseDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-
-                        return fullFilePath.StartsWith(fullBasePath, StringComparison.OrdinalIgnoreCase);
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                });
-            }
-
+   
 
 
 
@@ -1233,38 +1202,43 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task<DirectoryData> GetPaths(SecureString identifier, string software, string author,
+            public async Task<DirectoryData> GetPaths(SecureData identifier, string software, string author,
                 string programName, string serviceParent)
-            {
-
-                string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
-
-                string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
-
-                string specificProgram = Path.Combine(mainServicePath, software); //Zakstar/GunGaleOnline/TournamentOfBullets   Holds a json with all users (Sinon, LLENN, DeathGun, Etc.)
-
-                string userSharedResources = Path.Combine(specificProgram, "UserSharedResources"); //Zakstar/GunGaleOnline/TournamentOfBullets/UserSharedResources   Shared across specific subprogram
-                
-                var identifierToUse = identifier.ConvertToString();
-
-                var exePath = await GetExecutablePathAsync(programName);
-
-                string userProgramFolder = Path.Combine(mainServicePath, identifierToUse); //Zakstar/GunGaleOnline/TournamentOfBullets/Sinon       Data shared between the subprograms (Specifically for this user)
-
-                var relativeMainProgramPath = MakeRelativeFromAuthor(mainServicePath, author); //Zakstar/GGO/TOB
-
-                var newDirectoryFolder = new DirectoryData(companyPath, mainServicePath, specificProgram, author, software, userSharedResources, userProgramFolder, exePath, programName);
-
-                return newDirectoryFolder;
-
-            }
-
-            public async Task<bool> CheckMainPathValidity(DirectoryData data, SecureString? PublicKey)
             {
                 try
                 {
 
+                    string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
 
+                    string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
+
+                    string specificProgram = Path.Combine(mainServicePath, software); //Zakstar/GunGaleOnline/TournamentOfBullets   Holds a json with all users (Sinon, LLENN, DeathGun, Etc.)
+
+                    string userSharedResources = Path.Combine(specificProgram, "UserSharedResources"); //Zakstar/GunGaleOnline/TournamentOfBullets/UserSharedResources   Shared across specific subprogram
+
+                    var identifierToUse = identifier.ConvertToString();
+
+                    var exePath = await GetExecutablePathAsync(programName);
+
+                    string userProgramFolder = Path.Combine(mainServicePath, identifierToUse); //Zakstar/GunGaleOnline/TournamentOfBullets/Sinon       Data shared between the subprograms (Specifically for this user)
+
+                    var relativeMainProgramPath = MakeRelativeFromAuthor(mainServicePath, author); //Zakstar/GGO/TOB
+
+                    var newDirectoryFolder = new DirectoryData(companyPath, mainServicePath, specificProgram, author, software, userSharedResources, userProgramFolder, exePath, programName);
+
+                    return newDirectoryFolder;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Retrieve Folder Paths: {ex.Message}", ex);
+                }
+
+            }
+
+            public async Task<bool> CheckMainPathValidity(DirectoryData data, SecureData PublicKey)
+            {
+                try
+                {
 
                     var loadedJSON = await JSONDataHandler.LoadJsonFile("CORE", data.MainServicePath);
 
@@ -1281,384 +1255,420 @@ namespace Pariah_Cybersecurity
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"An error occured: {ex}");
+                    throw new Exception($"Failed To Retrieve Path Validity: {ex.Message}", ex);
                 }
             }
 
-            public async Task<bool> ValidateProgram(DirectoryData data, string programName, SecureString? PublicKey)
+
+
+
+
+            public async Task<SecureData> CreateNewSystem(string username, SecureData identifier, SecureData password, string software, string author,
+                string exePath, string serviceParent, int tiers, SecureData PublicKey, SecureData userID)
             {
-
-                var programPath = await GetExecutablePathAsync(programName);
-
-                var returnVal = await IsFileWithinDirectoryAsync(programPath, data.MainServicePath);
-
-                return returnVal;
-
-
-            }
-
-
-
-            public async Task<SecureString> CreateNewSystem(string username, SecureString identifier, SecureString password, string software, string author, 
-                string exePath, string serviceParent, int tiers, SecureString? PublicKey)
-            {
-
-                if (PublicKey == null)
-                {
-                    var temp = await DeviceIdentifier.GetBoardSerialAsync();
-                    PublicKey = temp.ToSecureString(true);
-                }
-
-
-                #region Basic Paths
-                //First create the proper paths
-                string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
-
-                string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
-
-                string specificProgram = Path.Combine(mainServicePath, software); //Zakstar/GunGaleOnline/TournamentOfBullets   Holds a json with all users (Sinon, LLENN, DeathGun, Etc.)
-
-                string userSharedResources = Path.Combine(specificProgram, "UserSharedResources"); //Zakstar/GunGaleOnline/TournamentOfBullets/UserSharedResources   Shared across specific subprogram
-
-                //Do these paths exist?
-                if (!Directory.Exists(companyPath))
-                {
-                    Directory.CreateDirectory(companyPath);
-                }
-
-                if (!Directory.Exists(mainServicePath))
-                {
-                    Directory.CreateDirectory(mainServicePath);
-                }
-
-                if (!Directory.Exists(specificProgram))
-                {
-                    Directory.CreateDirectory(specificProgram);
-                }
-
-                if (!Directory.Exists(userSharedResources))
-                {
-                    Directory.CreateDirectory(userSharedResources);
-                }
-
-                #endregion
-
-                var identifierToUse = identifier.ConvertToString();
-
-
-                string userProgramFolder = Path.Combine(mainServicePath, identifierToUse); //Zakstar/GunGaleOnline/TournamentOfBullets/Sinon       Data shared between the subprograms (Specifically for this user)
-
-
-
-                var relativeMainProgramPath = MakeRelativeFromAuthor(mainServicePath, author); //Zakstar/GGO/TOB
-
-                //First we will create a CORE service for this program
-
-                await JSONDataHandler.CreateJsonFile("CORE", mainServicePath, new JObject { });
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("CORE", mainServicePath);
-
-                var keys = await EasyPQC.Signatures.CreateKeys();
-
-                //Signatures
-
-                var signedMotherPath = await EasyPQC.Signatures.CreateSignature(keys.Item2, relativeMainProgramPath); //Signs the main software path
-
-                var signedCreatedBy = await EasyPQC.Signatures.CreateSignature(keys.Item2, author);
-
-                var savedPubKey = await JSONDataHandler.AddToJson<Dictionary<string, byte[]>>(loadedJson, "Public Key", keys.Item1, PublicKey); 
-
-                var savedMotherPath = await JSONDataHandler.AddToJson<byte[]>(savedPubKey, "signedMother", signedMotherPath, PublicKey);
-
-                await JSONDataHandler.SaveJson(savedMotherPath);
-
-                //Secret bank for Gun Gale Online
-
-                await SecretManager.CreateBank(userSharedResources, "SecretBank", null, PublicKey.ConvertToString());
-
-                //Manasger of Permissions and Allowed Software
-
-                // Think of tiers as levels in a company; the manager has access to everything employee and manager level,
-                // while the director has access to director, manager, and employee level data. Each higher tier inherits
-                // permissions from the lower ones, like a hierarchy of access control.
-
-                Dictionary<string, SecureString> tiervals = new Dictionary<string, SecureString>();
-
-                for (int i = 0; i < tiers; i++)
-                {
-                    var tierPass = PasswordGenerator.GeneratePassword(32, true, true, true, true).ToSecureString(true);
-                    tiervals.Add(i.ToString(), tierPass);
-                }
-
-
-                //And now to save these tiers in their own file; you technically cam make thousands but I highly suggest putting it to something reasonable like 10 max
-                //This is pretty much like a KeyCard given to a program BTW; since we know the password to the program and the tiers, we can simply keep reference of it in a file
-
-                Dictionary<string, EncryptedTier> encryptedTiers = new Dictionary<string, EncryptedTier>(); //tierVal (tierValSign, TierEncryptedKey, tierEncKeySign)
-                //Signed with the same signature from earlier
-
-                foreach (var item in tiervals)
-                {
-                    var itemval = item.Value.ConvertToString();
-
-
-                    var encTierPass = SimpleAESEncryption.Encrypt(item.Value.ConvertToString(), PublicKey).ToString();
-                    var signedTierPass = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Value.ConvertToString());
-                    var signedEncTier = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Key);
-
-                    encryptedTiers.Add(item.Key, new EncryptedTier (signedEncTier, encTierPass, signedTierPass));
-
-
-                }
-
-
-
-                await JSONDataHandler.CreateJsonFile("Data Tiers", mainServicePath, new JObject { });
-
-                var jsonToHaveTiers = await JSONDataHandler.LoadJsonFile("Data Tiers", mainServicePath);
-
-                var jsonWithTiers = await JSONDataHandler.UpdateJson<Dictionary<string, EncryptedTier>>(jsonToHaveTiers, "Data Tiers", encryptedTiers, PublicKey);
-
-                await JSONDataHandler.SaveJson(jsonWithTiers);
-
-
-                //And now to create the way in which programs can add files
-                //For now, we are going to make a file which has what programs are allowed to make an account as well as the permissions it has
-                //We will also make it so the programs can "Login" to the respective system
-                //And finally the session key container for holding session tokens
-
-
-                await JSONDataHandler.CreateJsonFile("Allowed Programs", mainServicePath, new JObject { });
-
-                var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
-
-                var jsonWithLoadedAllowedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", new Dictionary<string, SecureString>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-                var jsonWithBlacklistedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(jsonWithLoadedAllowedPrograms, "Blacklisted Programs", new Dictionary<string, SecureString>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-
-
-                await JSONDataHandler.SaveJson(jsonWithBlacklistedPrograms);
-
-
-                var acSessions = new AccountsWithSessions();
-
-
-
-
-
-                //Guess what? WE USE THE SYSTEM FROM AccountsWithSessions, we are literally pasting it here with a few minor changes (Adding a thing)
-
-                // Initialize an empty list of AccountData
-
-                await SetupFiles(mainServicePath);
-
-                var mainAccReturn = await CreateUser(username, password, mainServicePath);
-
-                return mainAccReturn;
-
-
-            }
-
-            public async Task<SecureString> CreateNewApp(string username, SecureString password, string Directory, DirectoryData directories, string tier, SecureString? PublicKey)
-            {
-
-                var properDirectoryCheck = await CheckMainPathValidity(directories, PublicKey);
-
-                var mainServicePath = directories.MainServicePath;
-
-                var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
-
-                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureString>) await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-                //Should still be secure, can be better
-
-                var isProgramBlacklisted = jsonWithBlacklistedPrograms.ContainsKey(directories.Software) || jsonWithBlacklistedPrograms.ContainsValue(directories.ExePath.ToSecureString(true));
-
-                if (isProgramBlacklisted)
-                {
-                    throw new Exception("This program is blacklisted.");
-                }
-
-                var allowedProgramsList = (Dictionary<string, SecureString>) await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-
-                var jsonToHaveTiers = await JSONDataHandler.LoadJsonFile("Data Tiers", mainServicePath);
-
-                var jsonWithTiers = (Dictionary<string, EncryptedTier>) await JSONDataHandler.GetVariable<Dictionary<string, EncryptedTier>>(jsonToHaveTiers, "Data Tiers", PublicKey);
-
-
-
-
-                var hasTier = jsonWithTiers.ContainsKey(tier);
-
-                if (!hasTier)
-                {
-                    throw new Exception("The requested tier does not exist.");
-                }
-
-
-
-                var itemval = jsonWithTiers[tier];
-
-                var decTierPass = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(itemval.EncryptedTierPass), PublicKey).ToString();
-
-                var signedTierPass = itemval.SignedTierPass;
-                var signedEncTier = itemval.SignedEncryptedTier;
-
-
-                var loadedCOREJson = await JSONDataHandler.LoadJsonFile("CORE", mainServicePath);
-
-                var pubKey = (Dictionary<string, byte[]>) await JSONDataHandler.GetVariable<Dictionary<string, byte>>(loadedCOREJson, "Public Key", PublicKey);
-
-                //Has errors, needs to be fixed but should still be secure
-
-                var verifiedTierPass = await EasyPQC.Signatures.VerifySignature(pubKey, signedEncTier, tier);
-
-                //var verifiedTierKey = await EasyPQC.Signatures.VerifySignature(pubKey, signedTierPass, tier);
-
-
-                if (!verifiedTierPass)
+                try
                 {
 
+        
+                        var temp = DeviceIdentifier.GetUserBoundMasterSecret(PublicKey.ToString());
+                        PublicKey = temp;
+                    
 
 
-                    throw new Exception("The tier information does not match the signature.");
-                }
+                    #region Basic Paths
+                    //First create the proper paths
+                    string companyPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), author); //Zakstar
 
-                var encProgramTier = SimpleAESEncryption.Encrypt(tier, PublicKey).ToString().ToSecureString();
+                    string mainServicePath = Path.Combine(companyPath, serviceParent); //Zakstar/GunGaleOnline
 
-                allowedProgramsList.Add(directories.Software, encProgramTier);
+                    string specificProgram = Path.Combine(mainServicePath, software); //Zakstar/GunGaleOnline/TournamentOfBullets   Holds a json with all users (Sinon, LLENN, DeathGun, Etc.)
 
-                var JsonWithUpdatedAppsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey);
+                    string userSharedResources = Path.Combine(specificProgram, "UserSharedResources"); //Zakstar/GunGaleOnline/TournamentOfBullets/UserSharedResources   Shared across specific subprogram
 
-                await JSONDataHandler.SaveJson(JsonWithUpdatedAppsList);
-
-                //And now create directories/Account
-
-                var mainAccReturn = await CreateUser(username, password, mainServicePath);
-
-                return mainAccReturn;
-
-
-            }
-
-            public async Task AddToBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
-            {
-                await ValidateSession(connSession, PublicKey);
-
-                var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
-
-                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureString>)await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-                bool varExists = false;
-
-
-                foreach (var item in jsonWithBlacklistedPrograms)
-                {
-                    if (item.Key == softwareName)
+                    //Do these paths exist?
+                    if (!Directory.Exists(companyPath))
                     {
-                        varExists = true;
-                        break;
+                        Directory.CreateDirectory(companyPath);
                     }
 
-   
-                }
-
-                if (varExists)
-                {
-                    throw new Exception("This program is already blacklisted.");
-                }
-
-
-                jsonWithBlacklistedPrograms.Add(softwareName, mainServicePath.ToSecureString()); 
-
-                var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-                await JSONDataHandler.SaveJson(jsonToSave);
-            }
-
-            public async Task RemoveFromBlacklist (string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
-            {
-                await ValidateSession(connSession, PublicKey);
-
-                var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
-
-                var jsonWithBlacklistedPrograms = (Dictionary<string, SecureString>)await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-                bool varExists = false;
-
-
-                foreach (var item in jsonWithBlacklistedPrograms)
-                {
-                    if (item.Key == softwareName)
+                    if (!Directory.Exists(mainServicePath))
                     {
-                        varExists = true;
-                        break;
+                        Directory.CreateDirectory(mainServicePath);
+                    }
+
+                    if (!Directory.Exists(specificProgram))
+                    {
+                        Directory.CreateDirectory(specificProgram);
+                    }
+
+                    if (!Directory.Exists(userSharedResources))
+                    {
+                        Directory.CreateDirectory(userSharedResources);
+                    }
+
+                    #endregion
+
+                    var identifierToUse = identifier.ConvertToString();
+
+
+                    string userProgramFolder = Path.Combine(mainServicePath, identifierToUse); //Zakstar/GunGaleOnline/TournamentOfBullets/Sinon       Data shared between the subprograms (Specifically for this user)
+
+
+
+                    var relativeMainProgramPath = MakeRelativeFromAuthor(mainServicePath, author); //Zakstar/GGO/TOB
+
+                    //First we will create a CORE service for this program
+
+                    await JSONDataHandler.CreateJsonFile("CORE", mainServicePath, new JsonObject { });
+
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("CORE", mainServicePath);
+
+                    var keys = await EasyPQC.Signatures.CreateKeys();
+
+                    //Signatures
+
+                    var signedMotherPath = await EasyPQC.Signatures.CreateSignature(keys.Item2, relativeMainProgramPath); //Signs the main software path
+
+                    var signedCreatedBy = await EasyPQC.Signatures.CreateSignature(keys.Item2, author);
+
+                    var savedPubKey = await JSONDataHandler.AddToJson<Dictionary<string, byte[]>>(loadedJson, "Public Key", keys.Item1, PublicKey);
+
+                    var savedMotherPath = await JSONDataHandler.AddToJson<byte[]>(savedPubKey, "signedMother", signedMotherPath, PublicKey);
+
+                    await JSONDataHandler.SaveJson(savedMotherPath);
+
+                    //Secret bank for Gun Gale Online
+
+                    await SecretManager.CreateBank(userSharedResources, "SecretBank", null, PublicKey.ToString());
+
+                    //Manasger of Permissions and Allowed Software
+
+                    // Think of tiers as levels in a company; the manager has access to everything employee and manager level,
+                    // while the director has access to director, manager, and employee level data. Each higher tier inherits
+                    // permissions from the lower ones, like a hierarchy of access control.
+
+                    Dictionary<string, SecureData> tiervals = new Dictionary<string, SecureData>();
+
+                    for (int i = 0; i < tiers; i++)
+                    {
+                        var tierPass = PasswordGenerator.GeneratePassword(32, true, true, true, true).ToSecureData();
+                        tiervals.Add(i.ToString(), tierPass);
                     }
 
 
-                }
+                    //And now to save these tiers in their own file; you technically cam make thousands but I highly suggest putting it to something reasonable like 10 max
+                    //This is pretty much like a KeyCard given to a program BTW; since we know the password to the program and the tiers, we can simply keep reference of it in a file
 
-                if (!varExists)
-                {
-                    throw new Exception("This program does not exist.");
-                }
+                    Dictionary<string, EncryptedTier> encryptedTiers = new Dictionary<string, EncryptedTier>(); //tierVal (tierValSign, TierEncryptedKey, tierEncKeySign)
+                                                                                                                //Signed with the same signature from earlier
 
-
-                jsonWithBlacklistedPrograms.Remove(softwareName);
-
-                var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-                await JSONDataHandler.SaveJson(jsonToSave);
-            }
-
-
-            public async Task RemoveAccount(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
-            {
-                await ValidateSession(connSession, PublicKey);
-
-                var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
-
-                var allowedProgramsList = (Dictionary<string, SecureString>)await JSONDataHandler.GetVariable<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-
-                bool varExists = false;
-
-                foreach (var item in allowedProgramsList)
-                {
-                    if (item.Key == softwareName)
+                    foreach (var item in tiervals)
                     {
-                        varExists = true;
-                        break;
+                        var itemval = item.Value.ConvertToString();
+
+
+                        var encTierPass = SimpleAESEncryption.Encrypt(item.Value.ConvertToString(), (SecureData)PublicKey).ToString();
+                        var signedTierPass = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Value.ConvertToString());
+                        var signedEncTier = await EasyPQC.Signatures.CreateSignature(keys.Item2, item.Key);
+
+                        encryptedTiers.Add(item.Key, new EncryptedTier(signedEncTier, encTierPass, signedTierPass));
+
+
                     }
 
+
+
+                    await JSONDataHandler.CreateJsonFile("Data Tiers", mainServicePath, new JsonObject { });
+
+                    var jsonToHaveTiers = await JSONDataHandler.LoadJsonFile("Data Tiers", mainServicePath);
+
+                    var jsonWithTiers = await JSONDataHandler.UpdateJson<Dictionary<string, EncryptedTier>>(jsonToHaveTiers, "Data Tiers", encryptedTiers, PublicKey);
+
+                    await JSONDataHandler.SaveJson(jsonWithTiers);
+
+
+                    //And now to create the way in which programs can add files
+                    //For now, we are going to make a file which has what programs are allowed to make an account as well as the permissions it has
+                    //We will also make it so the programs can "Login" to the respective system
+                    //And finally the session key container for holding session tokens
+
+
+                    await JSONDataHandler.CreateJsonFile("Allowed Programs", mainServicePath, new JsonObject { });
+
+                    var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
+
+                    var jsonWithLoadedAllowedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", new Dictionary<string, SecureData>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+                    var jsonWithBlacklistedPrograms = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(jsonWithLoadedAllowedPrograms, "Blacklisted Programs", new Dictionary<string, SecureData>(), PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+
+
+                    await JSONDataHandler.SaveJson(jsonWithBlacklistedPrograms);
+
+
+                    var acSessions = new AccountsWithSessions();
+
+
+
+
+
+                    //Guess what? WE USE THE SYSTEM FROM AccountsWithSessions, we are literally pasting it here with a few minor changes (Adding a thing)
+
+                    // Initialize an empty list of AccountData
+
+                    await SetupFiles(mainServicePath);
+
+                    var mainAccReturn = await CreateUser(username, password, mainServicePath);
+
+                    return mainAccReturn;
                 }
 
-                if (!varExists)
+                catch (Exception ex)
                 {
-                    throw new Exception("This program app does not exist.");
+                    throw new Exception($"Failed To Create New System: {ex.Message}", ex);
                 }
 
-
-                allowedProgramsList.Remove(softwareName);
-
-                var updatedProgramsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureString>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey); //Software name, Software Tier ID (Software Name + ID)
-
-                await JSONDataHandler.SaveJson(updatedProgramsList);
 
             }
 
-            public async Task VerifySessionIntegrity(DirectoryData data, ConnectedSessionReturn connSession, string mainServicePath, SecureString PublicKey)
+            public async Task<SecureData> CreateNewApp(string username, SecureData password, string Directory, DirectoryData directories, string tier, SecureData PublicKey)
             {
 
-                var mpValidity = await CheckMainPathValidity(data, PublicKey);
-
-                var sessIntegrity = await ValidateSession(connSession, PublicKey);
-
-                if (!mpValidity || !sessIntegrity)
+                try
                 {
-                    throw new Exception("The integrity session has failed. You have been logged off.");
+
+                    var properDirectoryCheck = await CheckMainPathValidity(directories, PublicKey);
+
+                    var mainServicePath = directories.MainServicePath;
+
+                    var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
+
+                    var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+                    //Should still be secure, can be better
+
+                    var isProgramBlacklisted = jsonWithBlacklistedPrograms.ContainsKey(directories.Software) || jsonWithBlacklistedPrograms.ContainsValue(directories.ExePath.ToSecureData());
+
+                    if (isProgramBlacklisted)
+                    {
+                        throw new Exception("This program is blacklisted.");
+                    }
+
+                    var allowedProgramsList = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+
+                    var jsonToHaveTiers = await JSONDataHandler.LoadJsonFile("Data Tiers", mainServicePath);
+
+                    var jsonWithTiers = (Dictionary<string, EncryptedTier>)await JSONDataHandler.GetVariable<Dictionary<string, EncryptedTier>>(jsonToHaveTiers, "Data Tiers", PublicKey);
+
+
+
+
+                    var hasTier = jsonWithTiers.ContainsKey(tier);
+
+                    if (!hasTier)
+                    {
+                        throw new Exception("The requested tier does not exist.");
+                    }
+
+
+
+                    var itemval = jsonWithTiers[tier];
+
+                    var decTierPass = SimpleAESEncryption.Decrypt(AESEncryptedText.FromString(itemval.EncryptedTierPass), (SecureData)PublicKey).ToString();
+
+                    var signedTierPass = itemval.SignedTierPass;
+                    var signedEncTier = itemval.SignedEncryptedTier;
+
+
+                    var loadedCOREJson = await JSONDataHandler.LoadJsonFile("CORE", mainServicePath);
+
+                    var pubKey = (Dictionary<string, byte[]>)await JSONDataHandler.GetVariable<Dictionary<string, byte>>(loadedCOREJson, "Public Key", PublicKey);
+
+                    //Has errors, needs to be fixed but should still be secure
+
+                    var verifiedTierPass = await EasyPQC.Signatures.VerifySignature(pubKey, signedEncTier, tier);
+
+                    //var verifiedTierKey = await EasyPQC.Signatures.VerifySignature(pubKey, signedTierPass, tier);
+
+
+                    if (!verifiedTierPass)
+                    {
+
+
+
+                        throw new Exception("The tier information does not match the signature.");
+                    }
+
+                    var encProgramTier = SimpleAESEncryption.Encrypt(tier, (SecureData)PublicKey).ToString().ToSecureData();
+
+                    allowedProgramsList.Add(directories.Software, encProgramTier);
+
+                    var JsonWithUpdatedAppsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey);
+
+                    await JSONDataHandler.SaveJson(JsonWithUpdatedAppsList);
+
+                    //And now create directories/Account
+
+                    var mainAccReturn = await CreateUser(username, password, mainServicePath);
+
+                    return mainAccReturn;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Create A New App: {ex.Message}", ex);
+                }
+
+
+            }
+
+            public async Task AddToBlacklist(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
+            {
+                try
+                {
+                    await ValidateSession(connSession, PublicKey);
+
+                    var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
+
+                    var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+                    bool varExists = false;
+
+
+                    foreach (var item in jsonWithBlacklistedPrograms)
+                    {
+                        if (item.Key == softwareName)
+                        {
+                            varExists = true;
+                            break;
+                        }
+
+
+                    }
+
+                    if (varExists)
+                    {
+                        throw new Exception("This program is already blacklisted.");
+                    }
+
+
+                    jsonWithBlacklistedPrograms.Add(softwareName, mainServicePath.ToSecureData());
+
+                    var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+                    await JSONDataHandler.SaveJson(jsonToSave);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Blacklist App: {ex.Message}", ex);
+                }
+            }
+
+            public async Task RemoveFromBlacklist(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
+            {
+                try
+                {
+                    await ValidateSession(connSession, PublicKey);
+
+                    var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
+
+                    var jsonWithBlacklistedPrograms = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+                    bool varExists = false;
+
+
+                    foreach (var item in jsonWithBlacklistedPrograms)
+                    {
+                        if (item.Key == softwareName)
+                        {
+                            varExists = true;
+                            break;
+                        }
+
+
+                    }
+
+                    if (!varExists)
+                    {
+                        throw new Exception("This program does not exist.");
+                    }
+
+
+                    jsonWithBlacklistedPrograms.Remove(softwareName);
+
+                    var jsonToSave = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Blacklisted Programs", jsonWithBlacklistedPrograms, PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+                    await JSONDataHandler.SaveJson(jsonToSave);
+                }
+
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Remove App From Blacklist: {ex.Message}", ex);
+                }
+            }
+
+
+            public async Task RemoveAccount(string softwareName, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
+            {
+                try
+                {
+                    await ValidateSession(connSession, PublicKey);
+
+                    var loadedAllowedPrograms = await JSONDataHandler.LoadJsonFile("Allowed Programs", mainServicePath);
+
+                    var allowedProgramsList = (Dictionary<string, SecureData>)await JSONDataHandler.GetVariable<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+
+                    bool varExists = false;
+
+                    foreach (var item in allowedProgramsList)
+                    {
+                        if (item.Key == softwareName)
+                        {
+                            varExists = true;
+                            break;
+                        }
+
+                    }
+
+                    if (!varExists)
+                    {
+                        throw new Exception("This program app does not exist.");
+                    }
+
+
+                    allowedProgramsList.Remove(softwareName);
+
+                    var updatedProgramsList = await JSONDataHandler.UpdateJson<Dictionary<string, SecureData>>(loadedAllowedPrograms, "Allowed Programs", allowedProgramsList, PublicKey); //Software name, Software Tier ID (Software Name + ID)
+
+                    await JSONDataHandler.SaveJson(updatedProgramsList);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Remove Account: {ex.Message}", ex);
+                }
+
+            }
+
+            public async Task VerifySessionIntegrity(DirectoryData data, ConnectedSessionReturn connSession, string mainServicePath, SecureData PublicKey)
+            {
+
+                try
+                {
+
+                    var mpValidity = await CheckMainPathValidity(data, PublicKey);
+
+                    var sessIntegrity = await ValidateSession(connSession, PublicKey);
+
+                    if (!mpValidity || !sessIntegrity)
+                    {
+                        throw new Exception("The integrity session has failed. You have been logged off.");
+                    }
+                }
+
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Verify Session Integrity: {ex.Message}", ex);
                 }
 
             }
@@ -1716,19 +1726,19 @@ namespace Pariah_Cybersecurity
             public class ConnectedSessionReturn
             {
 
-                public SecureString Username { get; private set; }
-                public SecureString SessionKey { get; private set; }
-                public SecureString SessionID { get; private set; }
+                public SecureData Username { get; private set; }
+                public SecureData SessionKey { get; private set; }
+                public SecureData SessionID { get; private set; }
 
-                public SecureString Directory { get; private set; }
+                public SecureData Directory { get; private set; }
 
                 public ConnectedSessionReturn() { }
 
-                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureString directory)
+                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureData directory)
                 {
-                    Username = username.ToSecureString(true);
-                    SessionKey = sessionKey.ToSecureString(true);
-                    SessionID = sessionID.ToSecureString(true);
+                    Username = username.ToSecureData();
+                    SessionKey = sessionKey.ToSecureData();
+                    SessionID = sessionID.ToSecureData();
                     Directory = directory;
                 }
             }
@@ -1736,11 +1746,11 @@ namespace Pariah_Cybersecurity
             public class ReturnCreateUser
             {
                 public ConnectedSessionReturn sessionReturn { get; private set; }
-                public SecureString RecoveryKey { get; private set; }
+                public SecureData RecoveryKey { get; private set; }
 
                 public ReturnCreateUser() { }
 
-                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureString recoveryKey)
+                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureData recoveryKey)
                 {
                     this.sessionReturn = sessionReturn;
                     RecoveryKey = recoveryKey;
@@ -1753,7 +1763,7 @@ namespace Pariah_Cybersecurity
 
 
 
-     
+
             public class AccountData
             {
                 public string Username { get; set; }
@@ -1783,64 +1793,79 @@ namespace Pariah_Cybersecurity
 
             public async Task SetupFiles(string directory)
             {
-                // Initialize an empty list of AccountData
-                List<AccountData> accountsList = new List<AccountData>();
+                try
+                {
+                    // Initialize an empty list of AccountData
+                    List<AccountData> accountsList = new List<AccountData>();
 
-                // Use your JSONDataHandler to create the file
-                await JSONDataHandler.CreateJsonFile("Users", directory, new JObject { });
+                    // Use your JSONDataHandler to create the file
+                    await JSONDataHandler.CreateJsonFile("Users", directory, new JsonObject { });
 
-                var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
+                    var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
 
-                var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", accountsList, SecuritySettings.PublicKey);
+                    var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", accountsList, SecuritySettings.PublicKey);
 
-                var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(jsonWithData, "Sessions", new List<ActiveSession>(), SecuritySettings.PublicKey);
+                    var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(jsonWithData, "Sessions", new List<ActiveSession>(), SecuritySettings.PublicKey);
 
-                // Insert your own logic below! Just be sure to change JsonWithData to whatever variable should be there now
+                    // Insert your own logic below! Just be sure to change JsonWithData to whatever variable should be there now
 
-                await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
+                    await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Setup Files: {ex.Message}", ex);
+                }
             }
 
-            public async Task<SecureString> CreateUser(string username, SecureString password, string Directory) //Return recovery key  
+            public async Task<SecureData> CreateUser(string username, SecureData password, string Directory) //Return recovery key  
             {
-                // 1. Create base user representation  
-                // 2. Save salted/hashed password  
-                // 3. Generate and save key used to encrypt information  
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-
-                // Check if the username already exists  
-                if (UserList.Any(user => user.Username == username))
+                try
                 {
-                    throw new Exception($"The username '{username}' already exists. Please choose a different username.");
+                    // 1. Create base user representation  
+                    // 2. Save salted/hashed password  
+                    // 3. Generate and save key used to encrypt information  
+
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+
+                    // Check if the username already exists  
+                    if (UserList.Any(user => user.Username == username))
+                    {
+                        throw new Exception($"The username '{username}' already exists. Please choose a different username.");
+                    }
+
+                    var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
+
+                    SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
+
+                    var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
+
+                    var encryptedrecoverable = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
+
+                    var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), password).ToString();
+
+
+
+
+                    var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
+
+                    UserList.Add(finalizeddata);
+
+                    var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
+
+                    await JSONDataHandler.SaveJson(updatedJson);
+
+                    return recoverykey;
                 }
 
-                var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
-
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
-
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
-
-                var encryptedrecoverable = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
-
-                var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), password).ToString();
-
-
-
-
-                var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
-
-                UserList.Add(finalizeddata);
-
-                var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
-
-                await JSONDataHandler.SaveJson(updatedJson);
-
-                return recoverykey;
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Retrieve Path Validity: {ex.Message}", ex);
+                }
             }
 
-            public async Task<SecureString> LoginCore(string username, string Directory, SecureString password) //Return file encryption key  
+            public async Task<SecureData> LoginCore(string username, string Directory, SecureData password) //Return file encryption key  
             {
                 try
                 {
@@ -1871,7 +1896,7 @@ namespace Pariah_Cybersecurity
 
                         if (correctpass)
                         {
-                            var encryptionkey = SimpleAESEncryption.AESEncryptedText.FromUTF8String(currentLoginTrial.DataEncryptionKey);
+                            var encryptionkey = SimpleAESEncryption.AESEncryptedText.FromString(currentLoginTrial.DataEncryptionKey);
                             var finalreturnval = SimpleAESEncryption.Decrypt(encryptionkey, password);
 
                             if (finalreturnval == null)
@@ -1893,68 +1918,75 @@ namespace Pariah_Cybersecurity
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"An error has occurred: {ex.Message}", ex);
+                    throw new Exception($"An error has occurred within Login Core: {ex.Message}", ex);
                 }
             }
 
 
-            public async Task<(SecureString, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureString password, bool IsTrusted) //Return file encryption key  
+            public async Task<(SecureData, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureData password, bool IsTrusted) //Return file encryption key  
             {
-                //We can actually use the same Login Logic from the generic "accounts" system!
-
-                var aesKey = await LoginCore(username, Directory, password);
-
-                //Now we will set a session, it will be ConnectedSessionReturn
-
-                var sessionKey = PasswordGenerator.GeneratePassword(64, true, true, true, true);
-
-                var sessionID = PasswordGenerator.GeneratePassword(32, true, true, true, true);
-
-                var encSessionKey = SimpleAESEncryption.Encrypt(sessionKey, aesKey).ToString();
-
-                var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", Directory);
-
-                var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
-
-                DateTime Expiry = DateTime.UtcNow;
-
-                if (IsTrusted)
+                try
                 {
-                    Expiry = Expiry.AddMinutes(SecuritySettings.TrustedExpiryDuration);
-                }
+                    //We can actually use the same Login Logic from the generic "accounts" system!
 
-                else
+                    var aesKey = await LoginCore(username, Directory, password);
+
+                    //Now we will set a session, it will be ConnectedSessionReturn
+
+                    var sessionKey = PasswordGenerator.GeneratePassword(64, true, true, true, true);
+
+                    var sessionID = PasswordGenerator.GeneratePassword(32, true, true, true, true);
+
+                    var encSessionKey = SimpleAESEncryption.Encrypt(sessionKey, aesKey).ToString();
+
+                    var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", Directory);
+
+                    var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
+
+                    DateTime Expiry = DateTime.UtcNow;
+
+                    if (IsTrusted)
+                    {
+                        Expiry = Expiry.AddMinutes(SecuritySettings.TrustedExpiryDuration);
+                    }
+
+                    else
+                    {
+                        Expiry = Expiry.AddMinutes(SecuritySettings.ExpiryDuration);
+                    }
+
+                    var isTrusted = Expiry.ToString("o") + "|" + IsTrusted.ToString();
+
+                    var encIsTrusted = SimpleAESEncryption.Encrypt(isTrusted, SecuritySettings.PublicKey).ToString();
+
+                    var checkData = (0.ToString() + "|" + DateTime.UtcNow.ToString("o"));
+
+
+                    var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
+
+                    var editedSessList = ActiveSessList;
+
+                    editedSessList.Add(new ActiveSession(username, sessionID, encSessionKey, Expiry.ToString("o"), encIsTrusted, encCheckData));
+
+
+                    var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedJSON, "Sessions", editedSessList, SecuritySettings.PublicKey);
+
+
+                    await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
+
+                    var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureData());
+
+                    return (aesKey, connReturnVals);
+                }
+                catch (Exception ex)
                 {
-                    Expiry = Expiry.AddMinutes(SecuritySettings.ExpiryDuration);
+                    throw new Exception($"Failed To Login User: {ex.Message}", ex);
                 }
-
-                var isTrusted = Expiry.ToString("o") + "|" + IsTrusted.ToString();
-
-                var encIsTrusted = SimpleAESEncryption.Encrypt(isTrusted, SecuritySettings.PublicKey).ToString();
-
-                var checkData = (0.ToString() + "|" + DateTime.UtcNow.ToString("o"));
-
-
-                var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
-
-                var editedSessList = ActiveSessList;
-
-                editedSessList.Add(new ActiveSession(username, sessionID, encSessionKey, Expiry.ToString("o"), encIsTrusted, encCheckData));
-
-
-                var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedJSON, "Sessions", editedSessList, SecuritySettings.PublicKey);
-
-
-                await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
-
-                var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureString(true));
-
-                return (aesKey, connReturnVals);
 
 
             }
 
-            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
                 var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
@@ -1991,10 +2023,10 @@ namespace Pariah_Cybersecurity
                     else
                     {
                         // Validate IsTrusted field and Session Key
-                        var isTrustedDecrypted = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(sess.IsTrusted), SecuritySettings.PublicKey); //Function will auto stop if bad
+                        var isTrustedDecrypted = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(sess.IsTrusted), SecuritySettings.PublicKey); //Function will auto stop if bad
                         var parts = isTrustedDecrypted.ConvertToString().Split('|');
 
-                        var isKeyGood = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(sess.SessionKey), decryptKey); //Function will auto stop if bad
+                        var isKeyGood = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(sess.SessionKey), decryptKey); //Function will auto stop if bad
 
 
                         if (isKeyGood.ConvertToString() != connSession.SessionKey.ConvertToString())
@@ -2046,7 +2078,7 @@ namespace Pariah_Cybersecurity
                 }
             }
 
-            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
 
                 await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
@@ -2074,203 +2106,225 @@ namespace Pariah_Cybersecurity
 
                 catch (Exception ex)
                 {
-                    throw new Exception($"An Error Has Occured: {ex}");
+                    throw new Exception($"Failed To Logout User: {ex.Message}", ex);
                 }
 
 
             }
             //Remember to wipe the connSession and decryptKey
 
-            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
 
-
-                await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
-
-                await LogoutUser(connSession, decryptKey);
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-
-                var matchedUser = UserList.FirstOrDefault(user => user.Username == connSession.Username.ConvertToString());
-
-
-                if (matchedUser == null)
+                try
                 {
-                    throw new Exception("This user does not exist.");
+                    await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
+
+                    await LogoutUser(connSession, decryptKey);
+
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+
+                    var matchedUser = UserList.FirstOrDefault(user => user.Username == connSession.Username.ConvertToString());
+
+
+                    if (matchedUser == null)
+                    {
+                        throw new Exception("This user does not exist.");
+                    }
+
+
+                    UserList.Remove(matchedUser);
+
+                    var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
+
+                    await JSONDataHandler.SaveJson(updatedJson);
                 }
 
-
-                UserList.Remove(matchedUser);
-
-                var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
-
-                await JSONDataHandler.SaveJson(updatedJson);
-
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Remove Account: {ex.Message}", ex);
+                }
 
             }
 
 
-            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureString decryptKey, SecureString NewPassword, SecureString RecoveryPass)
+            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureData decryptKey, SecureData NewPassword, SecureData RecoveryPass)
             {
 
-                await ValidateSession(connSession, decryptKey);
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-                var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJson, "Sessions", SecuritySettings.PublicKey);
-
-
-                AccountData? matchedUser = null;
-
-                foreach (var user in UserList)
+                try
                 {
+                    await ValidateSession(connSession, decryptKey);
+
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+                    var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJson, "Sessions", SecuritySettings.PublicKey);
 
 
-                    if (user.Username == connSession.Username.ConvertToString())
+                    AccountData? matchedUser = null;
+
+                    foreach (var user in UserList)
                     {
-                        matchedUser = user;
-                        break; // Exit loop once a match is found
+
+
+                        if (user.Username == connSession.Username.ConvertToString())
+                        {
+                            matchedUser = user;
+                            break; // Exit loop once a match is found
+                        }
                     }
-                }
 
-                if (matchedUser == null)
-                {
-                    throw new Exception("This user does not exist.");
-                }
-
-                ActiveSession? matchedSess = null;
-
-                foreach (var session in ActiveSessList)
-                {
-
-                    if (session.Username == connSession.Username.ConvertToString())
+                    if (matchedUser == null)
                     {
-                        matchedSess = session;
-                        break; // Exit loop once a match is found
+                        throw new Exception("This user does not exist.");
                     }
-                }
 
-                if (matchedUser == null)
-                {
-                    throw new Exception("This session does not exist.");
-                }
+                    ActiveSession? matchedSess = null;
 
-                var decryptedMatchedSessCALT = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(matchedSess.ChecksAndLastTry), SecuritySettings.PublicKey).ConvertToString();
+                    foreach (var session in ActiveSessList)
+                    {
 
-                var decryptedRecoveryKey = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(matchedUser.RecoveryDataKey), decryptKey).ConvertToString();
+                        if (session.Username == connSession.Username.ConvertToString())
+                        {
+                            matchedSess = session;
+                            break; // Exit loop once a match is found
+                        }
+                    }
 
-                var parts = decryptedMatchedSessCALT.Split('|');
-                int number = int.Parse(parts[0]);
-                DateTime time = DateTime.Parse(parts[1], null, System.Globalization.DateTimeStyles.RoundtripKind);
+                    if (matchedUser == null)
+                    {
+                        throw new Exception("This session does not exist.");
+                    }
 
-                //Decrypt all things in matchedUser
-                if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && !(number == SecuritySettings.FailRecoveryCheck || number == -1))
-                {
-                    if (number == -1 && time < DateTime.UtcNow)
+                    var decryptedMatchedSessCALT = SimpleAESEncryption.Decrypt(AESEncryptedText.FromString(matchedSess.ChecksAndLastTry), SecuritySettings.PublicKey).ConvertToString();
+
+                    var decryptedRecoveryKey = SimpleAESEncryption.Decrypt(AESEncryptedText.FromString(matchedUser.RecoveryDataKey), decryptKey).ConvertToString();
+
+                    var parts = decryptedMatchedSessCALT.Split('|');
+                    int number = int.Parse(parts[0]);
+                    DateTime time = DateTime.Parse(parts[1], null, System.Globalization.DateTimeStyles.RoundtripKind);
+
+                    //Decrypt all things in matchedUser
+                    if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && !(number == SecuritySettings.FailRecoveryCheck || number == -1))
+                    {
+                        if (number == -1 && time < DateTime.UtcNow)
+                        {
+                            var newUpdatedVal = ((0) + "|" + time.ToString("o"));
+                            matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+
+                            await JSONDataHandler.SaveJson(loadedJson);
+                            throw new Exception("The recovery key is invalid, please try again.");
+
+                        }
+
+                        else if (number == -1 && time > DateTime.UtcNow)
+                        {
+                            var newUpdatedVal2 = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
+                            throw new Exception($"The recovery key was invalid too many times, please try again at {newUpdatedVal2.ToString("yyyy-MM-dd HH:mm:ss")}");
+                        }
+
+                        else
+                        {
+                            var newUpdatedVal = ((number + 1) + "|" + time.ToString("o"));
+                            matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+
+                            await JSONDataHandler.SaveJson(loadedJson);
+                            throw new Exception("The recovery key is invalid, please try again.");
+
+                        }
+
+                    }
+
+                    else if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && (number == SecuritySettings.FailRecoveryCheck - 1))
+                    {
+                        time.AddMinutes(SecuritySettings.TimeToNextRecovery);
+                        var newUpdatedVal = ((-1) + "|" + time.ToString("o"));
+                        DateTime localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
+                        matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+
+                        await JSONDataHandler.SaveJson(loadedJson);
+                        throw new Exception($"The recovery key was invalid too many times, please try again at {localTime.ToString("yyyy-MM-dd HH:mm:ss")}");
+                    }
+
+                    else if (matchedUser.RecoveryDataKey == RecoveryPass.ConvertToString())
                     {
                         var newUpdatedVal = ((0) + "|" + time.ToString("o"));
                         matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
-
                         await JSONDataHandler.SaveJson(loadedJson);
-                        throw new Exception("The recovery key is invalid, please try again.");
-
+                        //The key is right!
                     }
 
-                    else if (number == -1 && time > DateTime.UtcNow)
-                    {
-                        var newUpdatedVal2 = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
-                        throw new Exception($"The recovery key was invalid too many times, please try again at {newUpdatedVal2.ToString("yyyy-MM-dd HH:mm:ss")}");
-                    }
+                    matchedUser.Password = await PasswordHandler.GeneratePasswordHashAsync(NewPassword);
 
-                    else
-                    {
-                        var newUpdatedVal = ((number + 1) + "|" + time.ToString("o"));
-                        matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+                    SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                        await JSONDataHandler.SaveJson(loadedJson);
-                        throw new Exception("The recovery key is invalid, please try again.");
+                    var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData(); //Return this
 
-                    }
+                    matchedUser.RecoveryDataKey = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
 
-                }
+                    var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), NewPassword).ToString();
 
-                else if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && (number == SecuritySettings.FailRecoveryCheck - 1))
-                {
-                    time.AddMinutes(SecuritySettings.TimeToNextRecovery);
-                    var newUpdatedVal = ((-1) + "|" + time.ToString("o"));
-                    DateTime localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
-                    matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+                    var checkData = 0.ToString() + "|" + DateTime.UtcNow.ToString("o");
+
+                    var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
 
                     await JSONDataHandler.SaveJson(loadedJson);
-                    throw new Exception($"The recovery key was invalid too many times, please try again at {localTime.ToString("yyyy-MM-dd HH:mm:ss")}");
-                }
 
-                else if (matchedUser.RecoveryDataKey == RecoveryPass.ConvertToString())
-                {
-                    var newUpdatedVal = ((0) + "|" + time.ToString("o"));
-                    matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
-                    await JSONDataHandler.SaveJson(loadedJson);
-                    //The key is right!
-                }
+                    //Now to update the sessions (We remove them)
 
-                matchedUser.Password = await PasswordHandler.GeneratePasswordHashAsync(NewPassword);
+                    var loadedActiveSessionsJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                    var UserRelatedSessions = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", SecuritySettings.PublicKey);
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true); //Return this
+                    List<ActiveSession> sessions = new List<ActiveSession>();
 
-                matchedUser.RecoveryDataKey = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
-
-                var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), NewPassword).ToString();
-
-                var checkData = 0.ToString() + "|" + DateTime.UtcNow.ToString("o");
-
-                var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
-
-                await JSONDataHandler.SaveJson(loadedJson);
-
-                //Now to update the sessions (We remove them)
-
-                var loadedActiveSessionsJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                var UserRelatedSessions = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", SecuritySettings.PublicKey);
-
-                List<ActiveSession> sessions = new List<ActiveSession>();
-
-                foreach (var item in UserRelatedSessions)
-                {
-                    if (item.Username == connSession.Username.ConvertToString() && item.SessionID == connSession.SessionID.ConvertToString())
+                    foreach (var item in UserRelatedSessions)
                     {
-                        sessions.Remove(item);
+                        if (item.Username == connSession.Username.ConvertToString() && item.SessionID == connSession.SessionID.ConvertToString())
+                        {
+                            sessions.Remove(item);
+                        }
                     }
+
+
+                    var updatedSessList = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", ActiveSessList, SecuritySettings.PublicKey);
+
+                    await JSONDataHandler.SaveJson(updatedSessList);
                 }
 
-
-                var updatedSessList = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", ActiveSessList, SecuritySettings.PublicKey);
-
-                await JSONDataHandler.SaveJson(updatedSessList);
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Reset Password: {ex.Message}", ex);
+                }
 
 
             }
 
-            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                var names = new List<string>();
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-
-                foreach (var item in UserList)
+                try
                 {
-                    names.Add(item.Username);
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
+
+                    var names = new List<string>();
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+
+                    foreach (var item in UserList)
+                    {
+                        names.Add(item.Username);
+                    }
+
+                    return names;
+
                 }
 
-                return names;
-
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed To Get All Usernames: {ex.Message}", ex);
+                }
 
             }
 
@@ -2294,11 +2348,11 @@ namespace Pariah_Cybersecurity
         public class Accounts
         {
 
-            internal SecureString PublicKey = "Default".ToSecureString(leaveOriginal: true);
+            internal SecureData PublicKey = "Default".ToSecureData();
 
             internal void ChangePublicKey(string NewVal)
             {
-                PublicKey = NewVal.ToSecureString(true);
+                PublicKey = NewVal.ToSecureData();
             }
 
             public class AccountData
@@ -2323,62 +2377,77 @@ namespace Pariah_Cybersecurity
 
             public async Task SetupFiles(string directory)
             {
-                // Initialize an empty list of AccountData
-                List<AccountData> accountsList = new List<AccountData>();
-
-                var encryptedList = await DataEncryptions.PackData<List<AccountData>>(accountsList, PublicKey);
-
-                // Use your JSONDataHandler to create the file
-                await JSONDataHandler.CreateJsonFile("Users", directory, new JObject { });
-
-                var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
-
-                var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", encryptedList, PublicKey);
-
-                // Insert your own logic below! Just be sure to change JsonWithData to whatever variable should be there now
-
-                await JSONDataHandler.SaveJson(jsonWithData);
-            }
-
-            public async Task<SecureString> CreateUser(string username, SecureString password, string Directory) //Return recovery key  
-            {
-                // 1. Create base user representation  
-                // 2. Save salted/hashed password  
-                // 3. Generate and save key used to encrypt information  
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", PublicKey);
-
-                // Check if the username already exists  
-                if (UserList.Any(user => user.Username == username))
+                try
                 {
-                    throw new Exception($"The username '{username}' already exists. Please choose a different username.");
+                    // Initialize an empty list of AccountData
+                    List<AccountData> accountsList = new List<AccountData>();
+
+                    // Use your JSONDataHandler to create the file
+                    await JSONDataHandler.CreateJsonFile("Users", directory, new JsonObject { });
+
+                    var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
+
+                    var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", accountsList, PublicKey);
+
+                    // Insert your own logic below! Just be sure to change JsonWithData to whatever variable should be there now
+
+                    await JSONDataHandler.SaveJson(jsonWithData);
                 }
 
-                var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error has occurred when setting up the files: {ex.Message}", ex);
+                }
+            }
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+            public async Task<SecureData> CreateUser(string username, SecureData password, string Directory) //Return recovery key  
+            {
+                try
+                {
+                    // 1. Create base user representation  
+                    // 2. Save salted/hashed password  
+                    // 3. Generate and save key used to encrypt information  
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
 
-                var encryptedrecoverable = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), recoverykey).ToString();
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", PublicKey);
 
-                var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), password).ToString();
+                    // Check if the username already exists  
+                    if (UserList.Any(user => user.Username == username))
+                    {
+                        throw new Exception($"The username '{username}' already exists. Please choose a different username.");
+                    }
 
-                var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
+                    var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
 
-                UserList.Add(finalizeddata);
+                    SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, PublicKey);
+                    var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                await JSONDataHandler.SaveJson(updatedJson);
+                    var encryptedrecoverable = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), recoverykey).ToString();
 
-                return recoverykey;
+                    var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), password).ToString();
+
+                    var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
+
+                    UserList.Add(finalizeddata);
+
+                    var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, PublicKey);
+
+                    await JSONDataHandler.SaveJson(updatedJson);
+
+                    return recoverykey;
+                }
+
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error has occurred when creating the user account: {ex.Message}", ex);
+                }
+
             }
 
 
-            public async Task<SecureString> LoginUser(string username, string Directory, SecureString password) //Return file encryption key  
+            public async Task<SecureData> LoginUser(string username, string Directory, SecureData password) //Return file encryption key  
             {
                 try
                 {
@@ -2409,7 +2478,7 @@ namespace Pariah_Cybersecurity
 
                         if (correctpass)
                         {
-                            var encryptionkey = SimpleAESEncryption.AESEncryptedText.FromUTF8String(currentLoginTrial.DataEncryptionKey);
+                            var encryptionkey = SimpleAESEncryption.AESEncryptedText.FromString(currentLoginTrial.DataEncryptionKey);
                             var finalreturnval = SimpleAESEncryption.Decrypt(encryptionkey, password);
 
                             if (finalreturnval == null)
@@ -2431,83 +2500,91 @@ namespace Pariah_Cybersecurity
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"An error has occurred: {ex.Message}", ex);
+                    throw new Exception($"An error has occurred when logging in: {ex.Message}", ex);
                 }
+
             }
 
-            public async Task<SecureString> ResetPassword(string username, string Directory, SecureString newpassword, SecureString RecoveryPass)
+            public async Task<SecureData> ResetPassword(string username, string Directory, SecureData newpassword, SecureData RecoveryPass)
             {
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", PublicKey);
-
-                AccountData currentLoginTrial = default;
-                bool userfound = false;
-
-                foreach (AccountData item in UserList)
+                try
                 {
-                    if (item.Username == username)
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", PublicKey);
+
+                    AccountData currentLoginTrial = default;
+                    bool userfound = false;
+
+                    foreach (AccountData item in UserList)
                     {
-                        currentLoginTrial = item;
-                        userfound = true;
-                        break;
-                    }
-                }
-
-                if (userfound)
-                {
-
-                    try
-                    {
-
-                        var recoverykeyaes = SimpleAESEncryption.AESEncryptedText.FromUTF8String(currentLoginTrial.RecoveryDataKey);
-                        var encryptionkey = SimpleAESEncryption.Decrypt(recoverykeyaes, RecoveryPass);
-
-                        //Had to make a note here, if this is right then we 
-
-                        var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(newpassword);
-
-                        SecureString newencryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
-
-                        var encryptedrecoverable = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), newencryptionkey).ToString();
-
-                        var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), newpassword).ToString();
-
-                        var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
-
-
-                        //Now replace the user item
-
-                        UserList.Remove(currentLoginTrial);
-
-                        UserList.Add(finalizeddata);
-
-                        var updatedJson = JSONDataHandler.UpdateJson<List<DataHandler.Accounts.AccountData>>(loadedJson, "AccountsList", UserList, PublicKey);
-
-                        return newencryptionkey;
-
+                        if (item.Username == username)
+                        {
+                            currentLoginTrial = item;
+                            userfound = true;
+                            break;
+                        }
                     }
 
-
-                    catch
+                    if (userfound)
                     {
 
+                        try
+                        {
+
+                            var recoverykeyaes = SimpleAESEncryption.AESEncryptedText.FromString(currentLoginTrial.RecoveryDataKey);
+                            var encryptionkey = SimpleAESEncryption.Decrypt(recoverykeyaes, RecoveryPass);
+
+                            //Had to make a note here, if this is right then we 
+
+                            var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(newpassword);
+
+                            SecureData newencryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
+
+                            var encryptedrecoverable = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), newencryptionkey).ToString();
+
+                            var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), newpassword).ToString();
+
+                            var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
+
+
+                            //Now replace the user item
+
+                            UserList.Remove(currentLoginTrial);
+
+                            UserList.Add(finalizeddata);
+
+                            var updatedJson = JSONDataHandler.UpdateJson<List<DataHandler.Accounts.AccountData>>(loadedJson, "AccountsList", UserList, PublicKey);
+
+                            return newencryptionkey;
+
+                        }
+
+
+                        catch
+                        {
+
+                            throw new Exception($"The username or password is incorrect.");
+
+                        }
+
+                    }
+
+                    else
+                    {
                         throw new Exception($"The username or password is incorrect.");
-
                     }
 
                 }
 
-                else
+                catch (Exception ex)
                 {
-                    throw new Exception($"The username or password is incorrect.");
+                    throw new Exception($"An error has occurred when resetting the password: {ex.Message}", ex);
                 }
-
-
 
             }
 
-            //To "logout", just clear the SecureString return from Login User
+            //To "logout", just clear the SecureData return from Login User
 
 
 
@@ -2528,7 +2605,7 @@ namespace Pariah_Cybersecurity
                 public string SessionKey { get; set; }
                 public string Expiry { get; set; }
                 public string IsTrusted { get; set; }
-                public string ChecksAndLastTry { get;  set; }
+                public string ChecksAndLastTry { get; set; }
 
 
                 public ActiveSession() { }
@@ -2547,19 +2624,19 @@ namespace Pariah_Cybersecurity
             public class ConnectedSessionReturn
             {
 
-                public SecureString Username { get; private set; }
-                public SecureString SessionKey { get; private set; }
-                public SecureString SessionID { get; private set; }
+                public SecureData Username { get; private set; }
+                public SecureData SessionKey { get; private set; }
+                public SecureData SessionID { get; private set; }
 
-                public SecureString Directory { get; private set; }
+                public SecureData Directory { get; private set; }
 
                 public ConnectedSessionReturn() { }
 
-                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureString directory)
+                public ConnectedSessionReturn(string username, string sessionKey, string sessionID, SecureData directory)
                 {
-                    Username = username.ToSecureString(true);
-                    SessionKey = sessionKey.ToSecureString(true);
-                    SessionID = sessionID.ToSecureString(true);
+                    Username = username.ToSecureData();
+                    SessionKey = sessionKey.ToSecureData();
+                    SessionID = sessionID.ToSecureData();
                     Directory = directory;
                 }
             }
@@ -2567,11 +2644,11 @@ namespace Pariah_Cybersecurity
             public class ReturnCreateUser
             {
                 public ConnectedSessionReturn sessionReturn { get; private set; }
-                public SecureString RecoveryKey { get; private set; }
+                public SecureData RecoveryKey { get; private set; }
 
                 public ReturnCreateUser() { }
 
-                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureString recoveryKey)
+                public ReturnCreateUser(ConnectedSessionReturn sessionReturn, SecureData recoveryKey)
                 {
                     this.sessionReturn = sessionReturn;
                     RecoveryKey = recoveryKey;
@@ -2593,7 +2670,7 @@ namespace Pariah_Cybersecurity
             //Decrypt all data and reencrypt it using the new key
             public static class SecuritySettings
             {
-                public static SecureString PublicKey { get; private set; }
+                public static SecureData PublicKey { get; private set; }
                 public static double ExpiryDuration { get; private set; }
                 public static double TrustedExpiryDuration { get; private set; }
                 public static int FailRecoveryCheck { get; private set; }
@@ -2602,17 +2679,17 @@ namespace Pariah_Cybersecurity
                 // Static constructor
                 static SecuritySettings()
                 {
-                    PublicKey = "Default".ToSecureString(true);
+                    PublicKey = "Default".ToSecureData();
                     ExpiryDuration = 540;
                     TrustedExpiryDuration = 20160;
                     FailRecoveryCheck = 5;
                     TimeToNextRecovery = 20;
                 }
 
-                public static void SetPublicKey(string newKey, bool makeReadOnly = true)
+                public static void SetPublicKey(string newKey)
                 {
-                    PublicKey.Dispose(); // Don't forget to clean up old SecureString!
-                    PublicKey = newKey.ToSecureString(makeReadOnly);
+                    PublicKey.Dispose(); // Don't forget to clean up old SecureData!
+                    PublicKey = newKey.ToSecureData();
                 }
 
                 public static void SetExpiryDuration(double minutes)
@@ -2663,64 +2740,79 @@ namespace Pariah_Cybersecurity
 
             public async Task SetupFiles(string directory)
             {
-                // Initialize an empty list of AccountData
-                List<AccountData> accountsList = new List<AccountData>();
+                try
+                {
+                    // Initialize an empty list of AccountData
+                    List<AccountData> accountsList = new List<AccountData>();
 
-                // Use your JSONDataHandler to create the file
-                await JSONDataHandler.CreateJsonFile("Users", directory, new JObject { });
+                    // Use your JSONDataHandler to create the file
+                    await JSONDataHandler.CreateJsonFile("Users", directory, new JsonObject { });
 
-                var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
+                    var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", directory);
 
-                var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", accountsList, SecuritySettings.PublicKey);
+                    var jsonWithData = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJSON, "AccountsList", accountsList, SecuritySettings.PublicKey);
 
-                var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(jsonWithData, "Sessions", new List<ActiveSession>(), SecuritySettings.PublicKey);
+                    var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(jsonWithData, "Sessions", new List<ActiveSession>(), SecuritySettings.PublicKey);
 
-                // Insert your own logic below! Just be sure to change JsonWithData to whatever variable should be there now
+                    // Insert your own logic below! Just be sure to change JsonWithData to whatever variable should be there now
 
-                await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
+                    await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error occurred while setting up the files: {ex.Message}", ex);
+                }
             }
 
-            public async Task<SecureString> CreateUser(string username, SecureString password, string Directory) //Return recovery key  
+            public async Task<SecureData> CreateUser(string username, SecureData password, string Directory) //Return recovery key  
             {
-                // 1. Create base user representation  
-                // 2. Save salted/hashed password  
-                // 3. Generate and save key used to encrypt information  
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-
-                // Check if the username already exists  
-                if (UserList.Any(user => user.Username == username))
+                try
                 {
-                    throw new Exception($"The username '{username}' already exists. Please choose a different username.");
+                    // 1. Create base user representation  
+                    // 2. Save salted/hashed password  
+                    // 3. Generate and save key used to encrypt information  
+
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", Directory);
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+
+                    // Check if the username already exists  
+                    if (UserList.Any(user => user.Username == username))
+                    {
+                        throw new Exception($"The username '{username}' already exists. Please choose a different username.");
+                    }
+
+                    var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
+
+                    SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
+
+                    var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
+
+                    var encryptedrecoverable = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
+
+                    var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), password).ToString();
+
+
+
+
+                    var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
+
+                    UserList.Add(finalizeddata);
+
+                    var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
+
+                    await JSONDataHandler.SaveJson(updatedJson);
+
+                    return recoverykey;
                 }
 
-                var encryptedpass = await PasswordHandler.GeneratePasswordHashAsync(password);
-
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
-
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
-
-                var encryptedrecoverable = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
-
-                var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), password).ToString();
-
-
-
-
-                var finalizeddata = new AccountData(username, encryptedpass, encryptedkey, encryptedrecoverable);
-
-                UserList.Add(finalizeddata);
-
-                var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
-
-                await JSONDataHandler.SaveJson(updatedJson);
-
-                return recoverykey;
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error occurred while creating the user: {ex.Message}", ex);
+                }
             }
 
-            private async Task<SecureString> LoginCore(string username, string Directory, SecureString password) //Return file encryption key  
+            private async Task<SecureData> LoginCore(string username, string Directory, SecureData password) //Return file encryption key  
             {
                 try
                 {
@@ -2728,7 +2820,7 @@ namespace Pariah_Cybersecurity
 
                     List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
 
-     
+
 
 
 
@@ -2752,7 +2844,7 @@ namespace Pariah_Cybersecurity
 
                         if (correctpass)
                         {
-                            var encryptionkey = SimpleAESEncryption.AESEncryptedText.FromUTF8String(currentLoginTrial.DataEncryptionKey);
+                            var encryptionkey = SimpleAESEncryption.AESEncryptedText.FromString(currentLoginTrial.DataEncryptionKey);
                             var finalreturnval = SimpleAESEncryption.Decrypt(encryptionkey, password);
 
                             if (finalreturnval == null)
@@ -2779,63 +2871,71 @@ namespace Pariah_Cybersecurity
             }
 
 
-            public async Task<(SecureString, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureString password, bool IsTrusted) //Return file encryption key  
+            public async Task<(SecureData, ConnectedSessionReturn)> LoginUser(string username, string Directory, SecureData password, bool IsTrusted) //Return file encryption key  
             {
-                //We can actually use the same Login Logic from the generic "accounts" system!
-
-                var aesKey = await LoginCore(username, Directory, password);
-
-                //Now we will set a session, it will be ConnectedSessionReturn
-
-                var sessionKey = PasswordGenerator.GeneratePassword(64, true, true, true, true);
-
-                var sessionID = PasswordGenerator.GeneratePassword(32, true, true, true, true);
-
-                var encSessionKey = SimpleAESEncryption.Encrypt(sessionKey, aesKey).ToString();
-
-                var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", Directory);
-
-                var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
-
-                DateTime Expiry = DateTime.UtcNow;
-
-                if (IsTrusted)
+                try
                 {
-                    Expiry = Expiry.AddMinutes(SecuritySettings.TrustedExpiryDuration);
+                    //We can actually use the same Login Logic from the generic "accounts" system!
+
+                    var aesKey = await LoginCore(username, Directory, password);
+
+                    //Now we will set a session, it will be ConnectedSessionReturn
+
+                    var sessionKey = PasswordGenerator.GeneratePassword(64, true, true, true, true);
+
+                    var sessionID = PasswordGenerator.GeneratePassword(32, true, true, true, true);
+
+                    var encSessionKey = SimpleAESEncryption.Encrypt(sessionKey, aesKey).ToString();
+
+                    var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", Directory);
+
+                    var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
+
+                    DateTime Expiry = DateTime.UtcNow;
+
+                    if (IsTrusted)
+                    {
+                        Expiry = Expiry.AddMinutes(SecuritySettings.TrustedExpiryDuration);
+                    }
+
+                    else
+                    {
+                        Expiry = Expiry.AddMinutes(SecuritySettings.ExpiryDuration);
+                    }
+
+                    var isTrusted = Expiry.ToString("o") + "|" + IsTrusted.ToString();
+
+                    var encIsTrusted = SimpleAESEncryption.Encrypt(isTrusted, SecuritySettings.PublicKey).ToString();
+
+                    var checkData = (0.ToString() + "|" + DateTime.UtcNow.ToString("o"));
+
+
+                    var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
+
+                    var editedSessList = ActiveSessList;
+
+                    editedSessList.Add(new ActiveSession(username, sessionID, encSessionKey, Expiry.ToString("o"), encIsTrusted, encCheckData));
+
+
+                    var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedJSON, "Sessions", editedSessList, SecuritySettings.PublicKey);
+
+
+                    await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
+
+                    var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureData());
+
+                    return (aesKey, connReturnVals);
                 }
 
-                else
+                catch (Exception ex)
                 {
-                    Expiry = Expiry.AddMinutes(SecuritySettings.ExpiryDuration);
+                    throw new Exception($"An error occurred while logging in the user: {ex.Message}", ex);
                 }
-
-                var isTrusted = Expiry.ToString("o") + "|" + IsTrusted.ToString();
-
-                var encIsTrusted = SimpleAESEncryption.Encrypt(isTrusted, SecuritySettings.PublicKey).ToString();
-
-                var checkData = (0.ToString() + "|" + DateTime.UtcNow.ToString("o"));
-
-
-                var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
-
-                var editedSessList = ActiveSessList;
-
-                editedSessList.Add(new ActiveSession(username, sessionID, encSessionKey, Expiry.ToString("o"), encIsTrusted, encCheckData));
-
-
-                var jsonWithActiveSessionData = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedJSON, "Sessions", editedSessList, SecuritySettings.PublicKey);
-
-
-                await JSONDataHandler.SaveJson(jsonWithActiveSessionData);
-
-                var connReturnVals = new ConnectedSessionReturn(username, sessionKey, sessionID, Directory.ToSecureString(true));
-
-                return (aesKey, connReturnVals);
 
 
             }
 
-            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<bool> ValidateSession(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
                 var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
                 var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
@@ -2872,10 +2972,10 @@ namespace Pariah_Cybersecurity
                     else
                     {
                         // Validate IsTrusted field and Session Key
-                        var isTrustedDecrypted = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(sess.IsTrusted), SecuritySettings.PublicKey); //Function will auto stop if bad
+                        var isTrustedDecrypted = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(sess.IsTrusted), SecuritySettings.PublicKey); //Function will auto stop if bad
                         var parts = isTrustedDecrypted.ConvertToString().Split('|');
 
-                        var isKeyGood = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromUTF8String(sess.SessionKey), decryptKey); //Function will auto stop if bad
+                        var isKeyGood = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(sess.SessionKey), decryptKey); //Function will auto stop if bad
 
 
                         if (isKeyGood.ConvertToString() != connSession.SessionKey.ConvertToString())
@@ -2927,231 +3027,259 @@ namespace Pariah_Cybersecurity
                 }
             }
 
-            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task LogoutUser(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
-
-                await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
-
-                var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
-
                 try
                 {
-                    ActiveSession? sess = null;
+                    await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
 
-                    foreach (var item in ActiveSessList)
+                    var loadedJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
+
+                    var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJSON, "Sessions", SecuritySettings.PublicKey);
+
+                    try
                     {
-                        if (item.Username == connSession.Username.ConvertToString() && item.SessionID == connSession.SessionID.ConvertToString())
+                        ActiveSession? sess = null;
+
+                        foreach (var item in ActiveSessList)
                         {
-                            sess = item;
+                            if (item.Username == connSession.Username.ConvertToString() && item.SessionID == connSession.SessionID.ConvertToString())
+                            {
+                                sess = item;
+                            }
                         }
+
+                        ActiveSessList.Remove(sess);
+                        var updatedJson = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedJSON, "Sessions", ActiveSessList, SecuritySettings.PublicKey);
+                        await JSONDataHandler.SaveJson(updatedJson);
                     }
 
-                    ActiveSessList.Remove(sess);
-                    var updatedJson = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedJSON, "Sessions", ActiveSessList, SecuritySettings.PublicKey);
-                    await JSONDataHandler.SaveJson(updatedJson);
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"An Error Has Occured: {ex}");
+                    }
                 }
 
                 catch (Exception ex)
                 {
-                    throw new Exception($"An Error Has Occured: {ex}");
+                    throw new Exception($"An error occurred while logging out the user: {ex.Message}", ex);
                 }
 
 
             }
             //Remember to wipe the connSession and decryptKey
 
-            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task RemoveAccount(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
 
-
-                await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
-
-                await LogoutUser(connSession, decryptKey);
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-
-                var matchedUser = UserList.FirstOrDefault(user => user.Username == connSession.Username.ConvertToString());
-
-
-                if (matchedUser == null)
+                try
                 {
-                    throw new Exception("This user does not exist.");
+                    await ValidateSession(connSession, decryptKey); //You don't really need to verify the bool, it should throw an exception automatically
+
+                    await LogoutUser(connSession, decryptKey);
+
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+
+                    var matchedUser = UserList.FirstOrDefault(user => user.Username == connSession.Username.ConvertToString());
+
+
+                    if (matchedUser == null)
+                    {
+                        throw new Exception("This user does not exist.");
+                    }
+
+
+                    UserList.Remove(matchedUser);
+
+                    var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
+
+                    await JSONDataHandler.SaveJson(updatedJson);
                 }
 
-
-                UserList.Remove(matchedUser);
-
-                var updatedJson = await JSONDataHandler.UpdateJson<List<AccountData>>(loadedJson, "AccountsList", UserList, SecuritySettings.PublicKey);
-
-                await JSONDataHandler.SaveJson(updatedJson);
-
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error occurred while removing the account: {ex.Message}", ex);
+                }
 
             }
 
 
-            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureString decryptKey, SecureString NewPassword, SecureString RecoveryPass)
+            public async Task ResetPassword(ConnectedSessionReturn connSession, SecureData decryptKey, SecureData NewPassword, SecureData RecoveryPass)
             {
 
-                await ValidateSession(connSession, decryptKey);
-
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-                var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJson, "Sessions", SecuritySettings.PublicKey);
-
-
-                AccountData? matchedUser = null;
-
-                foreach (var user in UserList)
+                try
                 {
 
+                    await ValidateSession(connSession, decryptKey);
 
-                    if (user.Username == connSession.Username.ConvertToString())
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+                    var ActiveSessList = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedJson, "Sessions", SecuritySettings.PublicKey);
+
+
+                    AccountData? matchedUser = null;
+
+                    foreach (var user in UserList)
                     {
-                        matchedUser = user;
-                        break; // Exit loop once a match is found
+
+
+                        if (user.Username == connSession.Username.ConvertToString())
+                        {
+                            matchedUser = user;
+                            break; // Exit loop once a match is found
+                        }
                     }
-                }
 
-                if (matchedUser == null)
-                {
-                    throw new Exception("This user does not exist.");
-                }
-
-                ActiveSession? matchedSess = null;
-
-                foreach (var session in ActiveSessList)
-                {
-
-                    if (session.Username == connSession.Username.ConvertToString())
+                    if (matchedUser == null)
                     {
-                        matchedSess = session;
-                        break; // Exit loop once a match is found
+                        throw new Exception("This user does not exist.");
                     }
-                }
 
-                if (matchedUser == null)
-                {
-                    throw new Exception("This session does not exist.");
-                }
+                    ActiveSession? matchedSess = null;
 
-                var decryptedMatchedSessCALT = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(matchedSess.ChecksAndLastTry), SecuritySettings.PublicKey).ConvertToString();
+                    foreach (var session in ActiveSessList)
+                    {
 
-                var decryptedRecoveryKey = SimpleAESEncryption.Decrypt(AESEncryptedText.FromUTF8String(matchedUser.RecoveryDataKey), decryptKey).ConvertToString();
+                        if (session.Username == connSession.Username.ConvertToString())
+                        {
+                            matchedSess = session;
+                            break; // Exit loop once a match is found
+                        }
+                    }
 
-                var parts = decryptedMatchedSessCALT.Split('|');
-                int number = int.Parse(parts[0]);
-                DateTime time = DateTime.Parse(parts[1], null, System.Globalization.DateTimeStyles.RoundtripKind);
+                    if (matchedUser == null)
+                    {
+                        throw new Exception("This session does not exist.");
+                    }
 
-                //Decrypt all things in matchedUser
-                if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && !(number == SecuritySettings.FailRecoveryCheck || number == -1))
-                {
-                    if (number == -1 && time < DateTime.UtcNow)
+                    var decryptedMatchedSessCALT = SimpleAESEncryption.Decrypt(AESEncryptedText.FromString(matchedSess.ChecksAndLastTry), SecuritySettings.PublicKey).ConvertToString();
+
+                    var decryptedRecoveryKey = SimpleAESEncryption.Decrypt(AESEncryptedText.FromString(matchedUser.RecoveryDataKey), decryptKey).ConvertToString();
+
+                    var parts = decryptedMatchedSessCALT.Split('|');
+                    int number = int.Parse(parts[0]);
+                    DateTime time = DateTime.Parse(parts[1], null, System.Globalization.DateTimeStyles.RoundtripKind);
+
+                    //Decrypt all things in matchedUser
+                    if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && !(number == SecuritySettings.FailRecoveryCheck || number == -1))
+                    {
+                        if (number == -1 && time < DateTime.UtcNow)
+                        {
+                            var newUpdatedVal = ((0) + "|" + time.ToString("o"));
+                            matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+
+                            await JSONDataHandler.SaveJson(loadedJson);
+                            throw new Exception("The recovery key is invalid, please try again.");
+
+                        }
+
+                        else if (number == -1 && time > DateTime.UtcNow)
+                        {
+                            var newUpdatedVal2 = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
+                            throw new Exception($"The recovery key was invalid too many times, please try again at {newUpdatedVal2.ToString("yyyy-MM-dd HH:mm:ss")}");
+                        }
+
+                        else
+                        {
+                            var newUpdatedVal = ((number + 1) + "|" + time.ToString("o"));
+                            matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+
+                            await JSONDataHandler.SaveJson(loadedJson);
+                            throw new Exception("The recovery key is invalid, please try again.");
+
+                        }
+
+                    }
+
+                    else if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && (number == SecuritySettings.FailRecoveryCheck - 1))
+                    {
+                        time.AddMinutes(SecuritySettings.TimeToNextRecovery);
+                        var newUpdatedVal = ((-1) + "|" + time.ToString("o"));
+                        DateTime localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
+                        matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+
+                        await JSONDataHandler.SaveJson(loadedJson);
+                        throw new Exception($"The recovery key was invalid too many times, please try again at {localTime.ToString("yyyy-MM-dd HH:mm:ss")}");
+                    }
+
+                    else if (matchedUser.RecoveryDataKey == RecoveryPass.ConvertToString())
                     {
                         var newUpdatedVal = ((0) + "|" + time.ToString("o"));
                         matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
-
                         await JSONDataHandler.SaveJson(loadedJson);
-                        throw new Exception("The recovery key is invalid, please try again.");
-
+                        //The key is right!
                     }
 
-                    else if (number == -1 && time > DateTime.UtcNow)
-                    {
-                        var newUpdatedVal2 = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
-                        throw new Exception($"The recovery key was invalid too many times, please try again at {newUpdatedVal2.ToString("yyyy-MM-dd HH:mm:ss")}");
-                    }
+                    matchedUser.Password = await PasswordHandler.GeneratePasswordHashAsync(NewPassword);
 
-                    else
-                    {
-                        var newUpdatedVal = ((number + 1) + "|" + time.ToString("o"));
-                        matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+                    SecureData encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData();
 
-                        await JSONDataHandler.SaveJson(loadedJson);
-                        throw new Exception("The recovery key is invalid, please try again.");
+                    var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureData(); //Return this
 
-                    }
+                    matchedUser.RecoveryDataKey = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
 
-                }
+                    var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), NewPassword).ToString();
 
-                else if (decryptedRecoveryKey != RecoveryPass.ConvertToString() && (number == SecuritySettings.FailRecoveryCheck - 1))
-                {
-                    time.AddMinutes(SecuritySettings.TimeToNextRecovery);
-                    var newUpdatedVal = ((-1) + "|" + time.ToString("o"));
-                    DateTime localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.Local);
-                    matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
+                    var checkData = 0.ToString() + "|" + DateTime.UtcNow.ToString("o");
+
+                    var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
 
                     await JSONDataHandler.SaveJson(loadedJson);
-                    throw new Exception($"The recovery key was invalid too many times, please try again at {localTime.ToString("yyyy-MM-dd HH:mm:ss")}");
-                }
 
-                else if (matchedUser.RecoveryDataKey == RecoveryPass.ConvertToString())
-                {
-                    var newUpdatedVal = ((0) + "|" + time.ToString("o"));
-                    matchedSess.ChecksAndLastTry = SimpleAESEncryption.Encrypt(newUpdatedVal, SecuritySettings.PublicKey).ToString();
-                    await JSONDataHandler.SaveJson(loadedJson);
-                    //The key is right!
-                }
+                    //Now to update the sessions (We remove them)
 
-                matchedUser.Password = await PasswordHandler.GeneratePasswordHashAsync(NewPassword);
+                    var loadedActiveSessionsJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
 
-                SecureString encryptionkey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true);
+                    var UserRelatedSessions = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", SecuritySettings.PublicKey);
 
-                var recoverykey = PasswordGenerator.GeneratePassword(256, true, true, true, true).ToSecureString(true); //Return this
+                    List<ActiveSession> sessions = new List<ActiveSession>();
 
-                matchedUser.RecoveryDataKey = SimpleAESEncryption.Encrypt(recoverykey.ConvertToString(), encryptionkey).ToString();
-
-                var encryptedkey = SimpleAESEncryption.Encrypt(encryptionkey.ConvertToString(), NewPassword).ToString();
-
-                var checkData = 0.ToString() + "|" + DateTime.UtcNow.ToString("o");
-
-                var encCheckData = SimpleAESEncryption.Encrypt(checkData, SecuritySettings.PublicKey).ToString();
-
-                await JSONDataHandler.SaveJson(loadedJson);
-
-                //Now to update the sessions (We remove them)
-
-                var loadedActiveSessionsJSON = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                var UserRelatedSessions = (List<ActiveSession>)await JSONDataHandler.GetVariable<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", SecuritySettings.PublicKey);
-
-                List<ActiveSession> sessions = new List<ActiveSession>();
-
-                foreach (var item in UserRelatedSessions)
-                {
-                    if (item.Username == connSession.Username.ConvertToString() && item.SessionID == connSession.SessionID.ConvertToString())
+                    foreach (var item in UserRelatedSessions)
                     {
-                        sessions.Remove(item);
+                        if (item.Username == connSession.Username.ConvertToString() && item.SessionID == connSession.SessionID.ConvertToString())
+                        {
+                            sessions.Remove(item);
+                        }
                     }
+
+
+                    var updatedSessList = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", ActiveSessList, SecuritySettings.PublicKey);
+
+                    await JSONDataHandler.SaveJson(updatedSessList);
                 }
 
-
-                var updatedSessList = await JSONDataHandler.UpdateJson<List<ActiveSession>>(loadedActiveSessionsJSON, "Sessions", ActiveSessList, SecuritySettings.PublicKey);
-
-                await JSONDataHandler.SaveJson(updatedSessList);
-
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error occurred while resetting the password: {ex.Message}", ex);
+                }
 
             }
 
-            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureString decryptKey)
+            public async Task<List<string>> GetAllUsernames(ConnectedSessionReturn connSession, SecureData decryptKey)
             {
-                var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
-
-                var names = new List<string>();
-
-                List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
-
-                foreach (var item in UserList)
+                try
                 {
-                    names.Add(item.Username);
+                    var loadedJson = await JSONDataHandler.LoadJsonFile("Users", connSession.Directory.ConvertToString());
+
+                    var names = new List<string>();
+
+                    List<AccountData> UserList = (List<AccountData>)await JSONDataHandler.GetVariable<List<AccountData>>(loadedJson, "AccountsList", SecuritySettings.PublicKey);
+
+                    foreach (var item in UserList)
+                    {
+                        names.Add(item.Username);
+                    }
+
+                    return names;
                 }
 
-                return names;
-
+                catch (Exception ex)
+                {
+                    throw new Exception($"An error occurred while gettinbg the usernames {ex.Message}", ex);
+                }
 
             }
 
@@ -3161,8 +3289,6 @@ namespace Pariah_Cybersecurity
 
 
     }
-
-
     public static class Utilities
     {
         public static string CreateUUID()
