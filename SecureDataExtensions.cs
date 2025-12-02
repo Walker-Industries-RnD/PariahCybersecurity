@@ -7,14 +7,22 @@ namespace WISecureData
         // Convert a string to SecureData, securely clearing the original string in memory
         public static SecureData ToSecureData(this string value)
         {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
+            try
+            {
+                if (value == null)
+                    throw new ArgumentNullException(nameof(value));
 
-            byte[] bytes = Encoding.UTF8.GetBytes(value);
+                byte[] bytes = Encoding.UTF8.GetBytes(value);
 
-            // Securely clear the original string in memory
-            value.SecureClear();
-            return new SecureData(bytes);
+                // Securely clear the original string in memory
+                value.SecureClear();
+                return new SecureData(bytes);
+            }
+
+            catch
+            {
+                throw new Exception("Failed to Convert to SecureData.");
+            }
         }
 
         // Securely clear the contents of a string by overwriting with null characters

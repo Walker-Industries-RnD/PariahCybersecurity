@@ -32,18 +32,26 @@ public static class BinaryConverter
     {
         try
         {
-            var serializer = config != null ? new CerasSerializer(config) : new CerasSerializer();
-            var data = serializer.Serialize(obj);
-            return data;
+            try
+            {
+                var serializer = config != null ? new CerasSerializer(config) : new CerasSerializer();
+                var data = serializer.Serialize(obj);
+                return data;
+            }
+            catch (Exception cerasEx)
+            {
+                // Fallback to JSON
+                await using var ms = new MemoryStream();
+                await JsonSerializer
+                      .SerializeAsync(ms, obj, _options, cancellationToken)
+                      .ConfigureAwait(false);
+                return ms.ToArray();
+            }
         }
-        catch (Exception cerasEx)
+
+        catch
         {
-            // Fallback to JSON
-            await using var ms = new MemoryStream();
-            await JsonSerializer
-                  .SerializeAsync(ms, obj, _options, cancellationToken)
-                  .ConfigureAwait(false);
-            return ms.ToArray();
+            throw new Exception("Failed to Convert Object to Byte Array.");
         }
     }
 
@@ -52,19 +60,27 @@ public static class BinaryConverter
         SerializerConfig? config = null,
         CancellationToken cancellationToken = default)
     {
-        // First try Ceras
         try
         {
-            var serializer = config != null ? new CerasSerializer(config) : new CerasSerializer();
-            return serializer.Deserialize<T>(data);
+            // First try Ceras
+            try
+            {
+                var serializer = config != null ? new CerasSerializer(config) : new CerasSerializer();
+                return serializer.Deserialize<T>(data);
+            }
+            catch (Exception cerasEx)
+            {
+                // Fallback to JSON
+                await using var ms = new MemoryStream(data);
+                return await JsonSerializer
+                             .DeserializeAsync<T>(ms, _options, cancellationToken)
+                             .ConfigureAwait(false);
+            }
         }
-        catch (Exception cerasEx)
+
+        catch
         {
-            // Fallback to JSON
-            await using var ms = new MemoryStream(data);
-            return await JsonSerializer
-                         .DeserializeAsync<T>(ms, _options, cancellationToken)
-                         .ConfigureAwait(false);
+            throw new Exception("Failed to Convert Byte Array to Object.");
         }
     }
 
@@ -77,9 +93,17 @@ private class JTokenConverter : JsonConverter<JToken>
             Type typeToConvert,
             JsonSerializerOptions options)
         {
-            // Parse the JSON fragment into a JsonDocument, then into a JToken.
-            using var doc = JsonDocument.ParseValue(ref reader);
-            return JToken.Parse(doc.RootElement.GetRawText());
+            try
+            {
+                // Parse the JSON fragment into a JsonDocument, then into a JToken.
+                using var doc = JsonDocument.ParseValue(ref reader);
+                return JToken.Parse(doc.RootElement.GetRawText());
+            }
+
+            catch
+            {
+                throw new Exception("Failed to Read JToken.");
+            }
         }
 
         public override void Write(
@@ -87,8 +111,16 @@ private class JTokenConverter : JsonConverter<JToken>
             JToken value,
             JsonSerializerOptions options)
         {
-            // Write the JToken’s raw JSON directly into the Utf8JsonWriter
-            writer.WriteRawValue(value.ToString(Newtonsoft.Json.Formatting.None));
+            try
+            {
+                // Write the JToken’s raw JSON directly into the Utf8JsonWriter
+                writer.WriteRawValue(value.ToString(Newtonsoft.Json.Formatting.None));
+            }
+
+            catch
+            {
+                throw new Exception("Failed to Write JToken.");
+            }
         }
     }
 

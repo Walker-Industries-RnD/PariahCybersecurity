@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 [![Project Replicant](imgs/ProjectReplicant.png)](https://walkerdev.itch.io/project-replicant)
 
 ![Pariah Cybersec](imgs/PariahCybersec.png)
-=======
-
-![Pariah Cybersec](imgs/Pariah-Cybersec-(3).png)
->>>>>>> 8731f2e (Update README.md)
 
 ## What is Pariah Cybersecurity?
 
@@ -13,39 +8,31 @@ Pariah Cybersecurity is a .NET 8.0 Based Library. Primarily developed for progra
 
 This is fully open source and free forever! It was made to target Windows, Linux and MacOS!
 
-<<<<<<< HEAD
-## View the wiki  
+## Watch The Video
+[![Watch the video](https://img.youtube.com/vi/Knm_1H1l3tI/hqdefault.jpg)](https://youtu.be/Knm_1H1l3tI)
+
+
+## View the wiki (May take a moment to load) 
 [Welcome to Pariah Cybersecurity Wiki](https://walker-industries-rnd.github.io/PariahCybersecurity/Welcome%20To%20Pariah%20Cybersecurity.html)
 
-=======
->>>>>>> 8731f2e (Update README.md)
 <div style="white-space: nowrap;">
 
 <div style="display: inline-block; vertical-align: top; width: 48%; margin-right: 2%;">
   <h3>💻 Code By WalkerDev</h3>
-<<<<<<< HEAD
   <img src="imgs/WalkerDev.png" alt="WalkerDev" height="200"><br>
-=======
-  <img src="imgs/Untitled1637_20241230144006.png" alt="WalkerDev" height="200"><br>
->>>>>>> 8731f2e (Update README.md)
   "Loving Coding Is Intrinsically The Same As Hating Yourself"<br>
   <a href="https://discord.gg/H8h8scsxtH">&gt; His Discord</a>
 </div>
 
 <div style="display: inline-block; vertical-align: top; width: 48%;">
   <h3>🎨 Art By Kennaness</h3>
-<<<<<<< HEAD
 <img src="imgs/Kennaness.png" alt="Ada" height="200"><br>
-=======
-  <img src="imgs/Untitled1700_20250212015725.png" alt="Kennaness" height="200"><br>
->>>>>>> 8731f2e (Update README.md)
   "When Will I Get My Isekai"<br>
   <a href="https://bsky.app/profile/kennaness.bsky.social">&gt; Her Bluesky</a>
 </div>
 
 </div>
 
-<<<<<<< HEAD
 <br>
 <br>
 
@@ -62,23 +49,10 @@ This is fully open source and free forever! It was made to target Windows, Linux
 
 
 (Note, there are many comments all around; you'll see as time continued they decreased in quality and quantity. I plan on adding more comments again at a later time, but I currently have other projects I would like to focus on! Everything should be fine to use in production!)
-=======
-
-<br>
-
-[Learn More About Walker Industries!](https://walkerindustries.xyz)
-[Join the Discord!](https://discord.gg/H8h8scsxtH)
-[Support Me on Patreon!](https://www.patreon.com/walkerdev)
-[Keep Up With Kennaness' Art Process!!](https://www.artstation.com/kennaness)
-
-
-(Note, there are many comments all around; you'll see as time continued they decreased in quality and quantity. I plan on adding more comments again at a later time, but I currently have other projects I would like to focus on! There are a few functional updates which will come later, but after SecureString is fixed, everything should be fine to use in production!)
->>>>>>> 8731f2e (Update README.md)
 
 
 ## What's Included?
 
-<<<<<<< HEAD
 🔐 Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption 
 
 📄 JSONDataHandler - A Simple Yet Powerful Method Of Writing, Saving and Getting Data
@@ -98,20 +72,6 @@ Check the [Find The Right Solution For You!](https://walker-industries-rnd.githu
 You Can Also Use [The Pariah's Codex of Autonomous Instruments](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/The%20Pariah's%20Codex%20of%20Autonomous%20Instruments.html) To View Almost All Pariah Focused Functions!  
 Finally, you can view examples directly within [The Pariah's Grimoire of Applied Functionality](https://walker-industries-rnd.github.io/PariahCybersecurity/PariahCybersecWiki/Look%20At%20These/The%20Pariah's%20Grimoire%20of%20Applied%20Functionality.html)!
 
-=======
-🔐Walker.Crypto.Keys.AsyncAESEncryption - Easy To Use AES256-GCM Based Encryption 
-📄JSONDataHandler - A Simple Yet Powerful Method Of Writing, Saving and Getting Data
-🗝️SecretManager - A Local Based Secrets Manager
-📨DataRequest - For Creating, Storing and Getting Data Readable By Other Programs Securely
-👤Accounts - A Barebones Example Of A Local Based Account System
-🔐AccountsWithSessions - A Secure, Local Based Account System With Session Verification
-
-And Much, Much More!
-
-Check the [[Find The Right Solution For You!]] Page To Learn More! This also acts as the table of contents!
-You Can Also Use [[The Pariah's Codex of Autonomous Instruments]] To View Almost All Pariah Focused Functions!
-Finally, you can view examples directly within [[The Pariah's Grimoire of Applied Functionality]]!
->>>>>>> 8731f2e (Update README.md)
 
 
 ## How Do I Use It?
@@ -126,7 +86,7 @@ With Pariah Cybersecurity, all you have to do is
 
 ``` csharp
 //Create a new Pariah Object on Disc
-await JSONDataHandler.CreateJsonFile(pathToSaveTo, "Yareli Gallery", new JObject {} );
+await JSONDataHandler.CreateJsonFile(pathToSaveTo, "Yareli Gallery", new JsonObject {} );
 //Load the PariahJSON you just made
 var loadedGalleryFile = await JSONDataHandler.LoadJsonFile(pathToSaveTo, "Yareli Gallery");
 //Add the gallery list to the PariahJson
@@ -151,7 +111,6 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 #### The Following Are Needed To Use All Of Pariah Cybersecurity:
 
 - BouncyCastle.NetCore
-<<<<<<< HEAD
 
 - Ceras
 
@@ -175,18 +134,6 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 
 - [X] Changing SecureString to use a custom char[] or byte[] based system (The current SecureString has a length limit, immediate fix needed)
 - [ ] Fix Pack and Unpack File (Not too important since I can use the AESmethod for now, I might outsource help here )
-=======
-- Ceras
-- k4os.Compression.LZ4
-- Konscious.Security.Cryptography.Argon2
-- Newtonsoft.Json
-- Parquet.Net
-
-
-## Changes, Fixes And Future Developments
-
-- [ ] Changing SecureString to use a custom char[] or byte[] based system (The current SecureString has a length limit, immediate fix needed)
->>>>>>> 8731f2e (Update README.md)
 - [ ] Readding one of the disabled signatures to the account with session system (Should still be secure without)
 - [ ] Package Dependencies Into Singular DLL
 - [ ] Adding more graceful error handling (Ha, like that's happening)
@@ -195,17 +142,12 @@ Keep in mind; there are a lot of systems within Pariah. Go to the [[Examples Dir
 
 ## Special Thanks
 
-<<<<<<< HEAD
 - To Kennaness for helping out between making art, hearing my code crash outs and being my development goddess
-=======
-- To Kennaness for helping out between making art, hearing my code crash outs and being a good bud
->>>>>>> 8731f2e (Update README.md)
 - My friends for supporting me through the development process
 - The Walker Industries' community on Discord for their support
 
 
 ## License
-<<<<<<< HEAD
 This project is licensed under the [NON-AI Mozilla Public License Version 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0).
 
 All images on this page were created by the artist Kennaness and are displayed here with permission.
@@ -217,8 +159,5 @@ You may not copy, download, distribute, modify, reproduce, use in AI training or
 Use of these images in any machine learning system, dataset, or generative model is strictly prohibited.
 
 Any unauthorized use, including but not limited to reproduction, redistribution, or AI-related use, will  be pursued to the fullest extent permitted under applicable law, including seeking damages, injunctive relief, and legal fees.
-=======
-#### This project is licensed under the [NON-AI Mozilla Public License Version 2.0](https://raw.githubusercontent.com/non-ai-licenses/non-ai-licenses/main/NON-AI-MPL-2.0).
->>>>>>> 8731f2e (Update README.md)
 
 

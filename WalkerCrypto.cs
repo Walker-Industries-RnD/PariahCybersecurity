@@ -1,12 +1,10 @@
-﻿using System.Security.Cryptography;
-using System.Text;
+﻿using Konscious.Security.Cryptography;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Security;
-
-using SecureData = WISecureData.SecureData;
-
+using System.Security.Cryptography;
+using System.Text;
+using WISecureData;
 
 namespace Walker.Crypto
 {
@@ -14,46 +12,36 @@ namespace Walker.Crypto
     {
         public struct AESEncryptedText
         {
-            public string IV;
-            public string EncryptedText;
+            public string Salt;         // Base64
+            public string IV;           // Base64
+            public string EncryptedText; // Base64 (ciphertext + tag)
 
-            public override string ToString() => $"{IV}|{EncryptedText}";
+            public override string ToString() => $"{Salt}|{IV}|{EncryptedText}";
 
-            public static AESEncryptedText FromUTF8String(string input)
+            public static AESEncryptedText FromString(string input)
             {
                 var parts = input.Split('|');
-                if (parts.Length != 2) throw new FormatException("Invalid AESEncryptedText format.");
-                return new AESEncryptedText { IV = parts[0], EncryptedText = parts[1] };
+                if (parts.Length != 3)
+                    throw new FormatException("Invalid encrypted format. Expected: Salt|IV|Ciphertext");
+                return new AESEncryptedText
+                {
+                    Salt = parts[0],
+                    IV = parts[1],
+                    EncryptedText = parts[2]
+                };
             }
         }
 
-        public static byte[] GenerateRandomBytes(int size)
+        private static byte[] DeriveKey(SecureData password, byte[] salt, int keyBytes = 32)
         {
-            var rnd = new SecureRandom();
-            var bytes = new byte[size];
-            rnd.NextBytes(bytes);
-            return bytes;
-        }
-
-        // Derive a 256-bit key by hashing the SecureData with SHA-256
-        public static byte[] DeriveKey(SecureData password, int keyBytes)
-        {
-            if (password == null) throw new ArgumentNullException(nameof(password));
-
-            string pwd = password.ConvertToString();
-            try
+            var argon2 = new Argon2id(password.ConvertToBytes())
             {
-                using var sha = SHA256.Create();
-                byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(pwd ?? string.Empty));
-                if (hash.Length == keyBytes) return hash;
-                var key = new byte[keyBytes];
-                Array.Copy(hash, key, Math.Min(hash.Length, keyBytes));
-                return key;
-            }
-            finally
-            {
-                Array.Clear(password.ConvertToBytes(), 0, password.ConvertToBytes().Length);
-            }
+                Salt = salt,
+                DegreeOfParallelism = 2,
+                MemorySize = 19456,  // ~19 MiB – OWASP 2025 minimum
+                Iterations = 10 //LOL good luck breaking this
+            };
+            return argon2.GetBytes(keyBytes);
         }
 
         public static AESEncryptedText Encrypt(string plainText, SecureData password)
@@ -61,185 +49,152 @@ namespace Walker.Crypto
             if (plainText == null) throw new ArgumentNullException(nameof(plainText));
             if (password == null) throw new ArgumentNullException(nameof(password));
 
-            var aes = new GcmBlockCipher(new AesEngine());
-            byte[] iv = GenerateRandomBytes(12);
-            byte[] key = DeriveKey(password, 32);
-            aes.Init(true, new AeadParameters(new KeyParameter(key), 128, iv));
+            var salt = RandomNumberGenerator.GetBytes(16);
+            var iv = RandomNumberGenerator.GetBytes(12);
+            var key = DeriveKey(password, salt);
 
-            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-            byte[] cipherBuf = new byte[aes.GetOutputSize(plainBytes.Length)];
+            var cipher = new GcmBlockCipher(new AesEngine());
+            cipher.Init(true, new AeadParameters(new KeyParameter(key), 128, iv));
 
-            int off = aes.ProcessBytes(plainBytes, 0, plainBytes.Length, cipherBuf, 0);
-            off += aes.DoFinal(cipherBuf, off);
-            Array.Resize(ref cipherBuf, off);
+            var plainBytes = Encoding.UTF8.GetBytes(plainText);
+            var output = new byte[cipher.GetOutputSize(plainBytes.Length)];
+            var len = cipher.ProcessBytes(plainBytes, 0, plainBytes.Length, output, 0);
+            len += cipher.DoFinal(output, len);
+            Array.Resize(ref output, len);
 
             return new AESEncryptedText
             {
+                Salt = Convert.ToBase64String(salt),
                 IV = Convert.ToBase64String(iv),
-                EncryptedText = Convert.ToBase64String(cipherBuf)
+                EncryptedText = Convert.ToBase64String(output)
             };
+        }
+
+        public static string Decrypt(string encryptedText, string ivBase64, string saltBase64, SecureData password)
+        {
+            if (encryptedText == null) throw new ArgumentNullException(nameof(encryptedText));
+            if (ivBase64 == null) throw new ArgumentNullException(nameof(ivBase64));
+            if (saltBase64 == null) throw new ArgumentNullException(nameof(saltBase64));
+            if (password == null) throw new ArgumentNullException(nameof(password));
+
+            var salt = Convert.FromBase64String(saltBase64);
+            var iv = Convert.FromBase64String(ivBase64);
+            var key = DeriveKey(password, salt);
+
+            var cipher = new GcmBlockCipher(new AesEngine());
+            cipher.Init(false, new AeadParameters(new KeyParameter(key), 128, iv));
+
+            var input = Convert.FromBase64String(encryptedText);
+            var output = new byte[cipher.GetOutputSize(input.Length)];
+            var len = cipher.ProcessBytes(input, 0, input.Length, output, 0);
+            len += cipher.DoFinal(output, len);
+
+            return Encoding.UTF8.GetString(output, 0, len);
         }
 
         public static SecureData Decrypt(AESEncryptedText encrypted, SecureData password)
         {
-            if (encrypted.EncryptedText == null || encrypted.IV == null)
-                throw new ArgumentNullException(nameof(encrypted));
-            if (password == null) throw new ArgumentNullException(nameof(password));
-
-            string plain = Decrypt(encrypted.EncryptedText, encrypted.IV, password);
+            var plain = Decrypt(encrypted.EncryptedText, encrypted.IV, encrypted.Salt, password);
             return SecureData.FromString(plain);
         }
-
-        public static string Decrypt(string encryptedText, string ivBase64, SecureData password)
-        {
-            if (encryptedText == null) throw new ArgumentNullException(nameof(encryptedText));
-            if (ivBase64 == null) throw new ArgumentNullException(nameof(ivBase64));
-            if (password == null) throw new ArgumentNullException(nameof(password));
-
-            var aes = new GcmBlockCipher(new AesEngine());
-            byte[] iv = Convert.FromBase64String(ivBase64);
-            byte[] key = DeriveKey(password, 32);
-            aes.Init(false, new AeadParameters(new KeyParameter(key), 128, iv));
-
-            byte[] cipher = Convert.FromBase64String(encryptedText);
-            byte[] plainBuf = new byte[aes.GetOutputSize(cipher.Length)];
-
-            int off = aes.ProcessBytes(cipher, 0, cipher.Length, plainBuf, 0);
-            off += aes.DoFinal(plainBuf, off);
-
-            return Encoding.UTF8.GetString(plainBuf, 0, off);
-        }
-
     }
 
     public static class AsyncAESEncryption
     {
-        public static async Task<SimpleAESEncryption.AESEncryptedText> EncryptAsync(string plainText, SecureData password, Action<double> progress = null)
-        {
-            return await Task.Run(() =>
+        public static Task<SimpleAESEncryption.AESEncryptedText> EncryptAsync(
+            string plainText, SecureData password, Action<double>? progress = null)
+            => Task.Run(() =>
             {
-                var aes = new GcmBlockCipher(new AesEngine());
-                byte[] iv = SimpleAESEncryption.GenerateRandomBytes(12);
-                byte[] key = SimpleAESEncryption.DeriveKey(password, 32);
-                aes.Init(true, new AeadParameters(new KeyParameter(key), 128, iv));
-
-                byte[] data = Encoding.UTF8.GetBytes(plainText);
-                byte[] cipherBuf = new byte[aes.GetOutputSize(data.Length)];
-
-                int pos = 0;
-                int chunkSize = 1024;
-                for (int i = 0; i < data.Length; i += chunkSize)
-                {
-                    int len = aes.ProcessBytes(data, i, Math.Min(chunkSize, data.Length - i), cipherBuf, pos);
-                    pos += len;
-                    progress?.Invoke((double)pos / data.Length);
-                }
-                pos += aes.DoFinal(cipherBuf, pos);
-                Array.Resize(ref cipherBuf, pos);
-
-                return new SimpleAESEncryption.AESEncryptedText
-                {
-                    IV = Convert.ToBase64String(iv),
-                    EncryptedText = Convert.ToBase64String(cipherBuf)
-                };
+                var result = SimpleAESEncryption.Encrypt(plainText, password);
+                progress?.Invoke(1.0);
+                return result;
             });
-        }
 
-        public static Task<string> DecryptAsync(SimpleAESEncryption.AESEncryptedText enc, SecureData pwd, Action<double> progress = null)
-            => DecryptAsync(enc.EncryptedText, enc.IV, pwd, progress);
-
-        public static async Task<string> DecryptAsync(string encryptedText, string ivBase64, SecureData password, Action<double> progress = null)
-        {
-            return await Task.Run(() =>
+        public static Task<string> DecryptAsync(
+            SimpleAESEncryption.AESEncryptedText enc, SecureData password, Action<double>? progress = null)
+            => Task.Run(() =>
             {
-                var aes = new GcmBlockCipher(new AesEngine());
-                byte[] iv = Convert.FromBase64String(ivBase64);
-                byte[] key = SimpleAESEncryption.DeriveKey(password, 32);
-                aes.Init(false, new AeadParameters(new KeyParameter(key), 128, iv));
-
-                byte[] cipher = Convert.FromBase64String(encryptedText);
-                byte[] plainBuf = new byte[aes.GetOutputSize(cipher.Length)];
-
-                int pos = 0;
-                int chunkSize = 1024;
-                for (int i = 0; i < cipher.Length; i += chunkSize)
-                {
-                    int len = aes.ProcessBytes(cipher, i, Math.Min(chunkSize, cipher.Length - i), plainBuf, pos);
-                    pos += len;
-                    progress?.Invoke((double)pos / cipher.Length);
-                }
-                pos += aes.DoFinal(plainBuf, pos);
-
-                return Encoding.UTF8.GetString(plainBuf, 0, pos);
+                progress?.Invoke(0.5);
+                var result = SimpleAESEncryption.Decrypt(enc, password);
+                progress?.Invoke(1.0);
+                return result.ConvertToString();
             });
-        }
 
-        public static async Task<SimpleAESEncryption.AESEncryptedText> EncryptBytesAsync(byte[] data, SecureData password, Action<double> progress = null)
-        {
-            // Convert chunk to Base64 string
-            string chunkStr = Convert.ToBase64String(data);
-            return await EncryptAsync(chunkStr, password, progress);
-        }
+        public static Task<byte[]> DecryptBytesAsync(
+            SimpleAESEncryption.AESEncryptedText enc, SecureData password, Action<double>? progress = null)
+            => Task.Run(() =>
+            {
+                var str = SimpleAESEncryption.Decrypt(enc, password);
+                progress?.Invoke(1.0);
+                return Convert.FromBase64String(str.ConvertToString());
+            });
 
-        public static async Task<byte[]> DecryptBytesAsync(SimpleAESEncryption.AESEncryptedText enc, SecureData password, Action<double> progress = null)
-        {
-            string base64 = await DecryptAsync(enc, password, progress);
-            return Convert.FromBase64String(base64);
-        }
+        public static Task<SimpleAESEncryption.AESEncryptedText> EncryptBytesAsync(
+            byte[] data, SecureData password, Action<double>? progress = null)
+            => Task.Run(() =>
+            {
+                var str = Convert.ToBase64String(data);
+                var result = SimpleAESEncryption.Encrypt(str, password);
+                progress?.Invoke(1.0);
+                return result;
+            });
     }
 
     public static class AESFileEncryptor
     {
-        private const int ChunkSize = 4 * 1024 * 1024; // 4MiB per chunk
+        private const int ChunkSize = 4 * 1024 * 1024; // 4 MiB
 
-   
-        public static async Task EncryptFileAsync(string inputPath, string outputPath, SecureData password, Action<double> progress = null)
+        public static async Task EncryptFileAsync(
+            string inputPath, string outputPath, SecureData password, Action<double>? progress = null)
         {
             using var input = new FileStream(inputPath, FileMode.Open, FileAccess.Read);
-            using var writer = new StreamWriter(outputPath, false, Encoding.UTF8);
+            await using var writer = new StreamWriter(outputPath);
 
-            long total = input.Length;
-            long readSoFar = 0;
-            byte[] buffer = new byte[ChunkSize];
+            var total = input.Length;
+            var processed = 0L;
+            var buffer = new byte[ChunkSize];
+
             int read;
-            while ((read = await input.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            while ((read = await input.ReadAsync(buffer)) > 0)
             {
-                // Copy exact bytes
                 var chunk = new byte[read];
-                Array.Copy(buffer, 0, chunk, 0, read);
+                Buffer.BlockCopy(buffer, 0, chunk, 0, read);
 
-                // Encrypt chunk
-                var encChunk = await AsyncAESEncryption.EncryptBytesAsync(chunk, password, p => progress?.Invoke((readSoFar + p * read) / total));
+                var encrypted = await AsyncAESEncryption.EncryptBytesAsync(chunk, password);
+                await writer.WriteLineAsync(encrypted.ToString());
 
-                // Write as "IV|EncryptedBase64"
-                await writer.WriteLineAsync(encChunk.ToString());
-
-                readSoFar += read;
-                progress?.Invoke((double)readSoFar / total);
+                processed += read;
+                progress?.Invoke((double)processed / total);
             }
-            await writer.FlushAsync();
         }
 
-        public static async Task DecryptFileAsync(string inputPath, string outputPath, SecureData password, Action<double> progress = null)
+        public static async Task DecryptFileAsync(
+            string inputPath, string outputPath, SecureData password, Action<double>? progress = null)
         {
-            using var reader = new StreamReader(inputPath, Encoding.UTF8);
-            using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
+            using var reader = new StreamReader(inputPath);
+            using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, true);
 
-            // First, read all lines to count chunks
             var lines = new List<string>();
-            string line;
+            string? line;
             while ((line = await reader.ReadLineAsync()) != null)
                 lines.Add(line);
 
-            int chunkCount = lines.Count;
-            for (int i = 0; i < chunkCount; i++)
+            var total = lines.Count;
+            if (total == 0)
             {
-                var encChunk = SimpleAESEncryption.AESEncryptedText.FromUTF8String(lines[i]);
-                var bytes = await AsyncAESEncryption.DecryptBytesAsync(encChunk, password, p => progress?.Invoke((i + p) / (double)chunkCount));
-                await output.WriteAsync(bytes, 0, bytes.Length);
+                progress?.Invoke(1.0);
+                return;
             }
-            progress?.Invoke(1.0);
+
+            for (int i = 0; i < total; i++)
+            {
+                var enc = SimpleAESEncryption.AESEncryptedText.FromString(lines[i]);
+                var bytes = await AsyncAESEncryption.DecryptBytesAsync(enc, password);
+                await output.WriteAsync(bytes);
+
+                progress?.Invoke((i + 1.0) / total);
+            }
+
         }
     }
-
 }
