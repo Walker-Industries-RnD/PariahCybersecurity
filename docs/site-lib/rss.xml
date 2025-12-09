@@ -1,4 +1,36 @@
-<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title><![CDATA[Pariah Cybersecurity Wiki]]></title><description><![CDATA[Obsidian digital garden]]></description><link>http://github.com/dylang/node-rss</link><image><url>site-lib/media/favicon.png</url><title>Pariah Cybersecurity Wiki</title><link></link></image><generator>Webpage HTML Export plugin for Obsidian</generator><lastBuildDate>Thu, 04 Dec 2025 19:30:37 GMT</lastBuildDate><atom:link href="site-lib/rss.xml" rel="self" type="application/rss+xml"/><pubDate>Thu, 04 Dec 2025 19:30:15 GMT</pubDate><ttl>60</ttl><dc:creator></dc:creator><item><title><![CDATA[General Directory Map]]></title><description><![CDATA[Handles the creation, reading, deletion overall management of secret vaults.Represents a reference to an encrypted secret file. Fields: string SecretName (internal set): Logical name of the secret.
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title><![CDATA[Pariah Cybersecurity Wiki]]></title><description><![CDATA[Obsidian digital garden]]></description><link>http://github.com/dylang/node-rss</link><image><url>site-lib/media/favicon.png</url><title>Pariah Cybersecurity Wiki</title><link></link></image><generator>Webpage HTML Export plugin for Obsidian</generator><lastBuildDate>Tue, 09 Dec 2025 19:20:41 GMT</lastBuildDate><atom:link href="site-lib/rss.xml" rel="self" type="application/rss+xml"/><pubDate>Tue, 09 Dec 2025 19:20:19 GMT</pubDate><ttl>60</ttl><dc:creator></dc:creator><item><title><![CDATA[EasyPQC.FileOperations]]></title><description><![CDATA[Represents a packed (compressed + optionally encrypted) file along with its cryptographic signature.
+Fields: string FilePath – Full path of the resulting packed file.
+byte[] Signature – Blake3 hash of the original file (signed or raw depending on use case). Methods: override string ToString() → Returns "FilePath|Signature(Base64)"
+static PackedFile FromString(string packedFileString) – Parses a string in the above format back into a PackedFile instance. Controls trade-off between speed and compression ratio when using LZ4.
+Fast – Prioritizes speed (default LZ4 fast mode)
+Balanced – Good ratio with reasonable speed
+Max – Highest compression (uses LZ4 HC)
+public delegate void CompressionProgress(long current, long total, int percentage);
+Callback used to report real-time progress during compression/decompression.Task&lt;string&gt; CompressFileAsync( string fileInput, string fileOutput, CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Fast)
+Asynchronously compresses a file using LZ4/LZ4HC. Returns the path to the compressed file (.lz4 extension added if not present).Task&lt;string&gt; DecompressFileAsync( string fileInput, string fileOutput, CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Fast)
+Asynchronously decompresses an LZ4-compressed file. Returns the path to the decompressed output file.public static async Task&lt;byte[]&gt; HashFile(Stream fileData)
+Computes the Blake3 hash of a file/stream entirely in memory. Suitable for files that fit in RAM or when streaming through a MemoryStream.Current Implementation (Working):public static async Task&lt;byte[]&gt; HashFile(Stream fileData)
+{ return await Task.Run(() =&gt; { fileData.Seek(0, SeekOrigin.Begin); var hasher = Blake3.Hasher.New(); // Using Blake3.Net var buffer = new byte[81920]; int bytesRead; while ((bytesRead = fileData.Read(buffer, 0, buffer.Length)) &gt; 0) hasher.Update(buffer.AsSpan(0, bytesRead)); return hasher.Finalize().ToArray(); });
+} Note: The old MemoryStream copy version has been replaced with proper streaming to support large files without OOM.
+public static async Task&lt;bool&gt; VerifyHash(Stream fileData, byte[] expectedSignature)
+Re-computes the Blake3 hash of the stream and compares it against the expected signature.public static async Task&lt;bool&gt; VerifyHash(Stream fileData, byte[] expectedSignature)
+{ var computed = await HashFile(fileData); return computed.SequenceEqual(expectedSignature);
+}
+Task&lt;PackedFile&gt; PackFiles( string fileInput, string outputDirectory, byte[] privateKey, // For signing hash (Ed25519/Curve25519+X) SecureData sessionKey = null, // Optional AES-256-GCM session key CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Balanced, bool encrypt = true)
+Full packing pipeline:
+Compress file with LZ4
+Compute Blake3 hash of original file
+(Optional) Sign hash with privateKey
+(Optional) Encrypt compressed data + signature with sessionKey
+Write final packed file
+Return PackedFile with path and final signature
+Task&lt;bool&gt; UnpackFile( PackedFile packedFile, string outputPath, byte[] publicKey, // To verify signature CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Balanced, SecureData sessionKey = null)
+Reverse operation:
+Decrypt if encrypted
+Verify Blake3 ± signature using public key
+Decompress with LZ4
+Write original file
+Returns true on success and integrity verified.]]></description><link>easypqc/functions/easypqc.fileoperations.html</link><guid isPermaLink="false">EasyPQC/Functions/EasyPQC.FileOperations.md</guid><pubDate>Tue, 09 Dec 2025 19:19:44 GMT</pubDate></item><item><title><![CDATA[General Directory Map]]></title><description><![CDATA[Handles the creation, reading, deletion overall management of secret vaults.Represents a reference to an encrypted secret file. Fields: string SecretName (internal set): Logical name of the secret.
 string SecretPath (internal set): Encrypted path to the secret file. Constructor:
 PublicKeyFile(string secretName, string secretPath) Used to initialize a new secret entry when creating a bank. Fields: string SecretName (internal set): Logical name of the secret.
 SecureData Value (internal set): Initial secret value.
@@ -211,33 +243,39 @@ The keys are then given to the recepient when they're back, with the public kybe
 We have an action function that handles roles, messages, etc.
 Also need CRDT and Audit Log with both being used to verify a sent in session
 I'm not sure if for searching for messages and stuff it'll use Homomorphic Encryption or something yet
-EasyPQCWARNING: THIS FUNCTION DOES NOT WORK AND IS EXPERIMENTAL. THE WIKI FOR THIS IS OUTDATED AS I TEST OUT METHODS TO MAKE IT WORK.Represents a file that has been packed (compressed and optionally encrypted) with its associated signature. Fields: string FilePath: The path of the packed file.
-string Signature: The signature of the packed file, usually encrypted. Methods: ToString(): Converts the PackedFile to a string representation in the format FilePath|Signature.
-static PackedFile FromString(string packedFileString): Creates a PackedFile instance from a string representation. Defines the level of compression for LZ4 compression.
-Values: Fast: Fast compression.
-Balanced: Balanced compression.
-Max: Maximum compression. Delegate for reporting the progress of a file compression or decompression operation.
-Parameters: long current: The current position of the operation.
-long fileSize: The total size of the file.
-int percentage: The percentage of completion. Compresses a file asynchronously using LZ4 and reports progress. Parameters: fileInput: The input file path.
-fileOutput: The output file path.
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression to use. Returns: Task: The path to the compressed file. Decompresses a file asynchronously using LZ4 and reports progress. Parameters: fileInput: The input file path.
-fileOutput: The output file path.
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression to use. Returns: Task: The path to the decompressed file. Hashes a file asynchronously using Blake3. Parameters: fileData: The stream containing the file data to hash. Returns: Task&lt;byte[]&gt;: The computed hash of the file. Verifies the integrity of a file by comparing its hash to a provided signature. Parameters: fileData: The stream containing the file data to verify.
-signature: The signature to compare the hash against. Returns: Task: true if the hash matches the signature, otherwise false. Compresses a file, creates a signed hash, and optionally encrypts the file. Parameters: fileInput: The input file path.
-fileOutput: The output directory for the packed file.
-privateKey: The private key for signing the file hash.
-sessionkey: The session key for encryption (if applicable).
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression to use.
-encryptFile: Whether to encrypt the packed file. Returns: Task: A PackedFile containing the packed file and its signature. Unpacks and decompresses a file, verifying its signature and decrypting it if necessary. Parameters: inputFile: The packed file to unpack.
-outputPath: The directory where the unpacked file should be saved.
-publicKey: The public key for signature verification.
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression used.
-sessionkey: The session key for decryption (if applicable). Returns: Task: true if the file was successfully unpacked and verified, otherwise false. EasyPQC.FileOperationsGenerates secure random passwords based on customizable criteria (character sets and length), has a singular function;<br><a data-href="PasswordGenerator.GeneratePassword" href="passwordgenerator/functions/passwordgenerator.generatepassword.html" class="internal-link" target="_self" rel="noopener nofollow">PasswordGenerator.GeneratePassword</a>PasswordGeneratorGenerates a random password using the specified character types and length. Parameters: length: Total number of characters in the generated password. Must be &gt; 0.
+EasyPQCRepresents a packed (compressed + optionally encrypted) file along with its cryptographic signature.
+Fields: string FilePath – Full path of the resulting packed file.
+byte[] Signature – Blake3 hash of the original file (signed or raw depending on use case). Methods: override string ToString() → Returns "FilePath|Signature(Base64)"
+static PackedFile FromString(string packedFileString) – Parses a string in the above format back into a PackedFile instance. Controls trade-off between speed and compression ratio when using LZ4.
+Fast – Prioritizes speed (default LZ4 fast mode)
+Balanced – Good ratio with reasonable speed
+Max – Highest compression (uses LZ4 HC)
+public delegate void CompressionProgress(long current, long total, int percentage);
+Callback used to report real-time progress during compression/decompression.Task&lt;string&gt; CompressFileAsync( string fileInput, string fileOutput, CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Fast)
+Asynchronously compresses a file using LZ4/LZ4HC. Returns the path to the compressed file (.lz4 extension added if not present).Task&lt;string&gt; DecompressFileAsync( string fileInput, string fileOutput, CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Fast)
+Asynchronously decompresses an LZ4-compressed file. Returns the path to the decompressed output file.public static async Task&lt;byte[]&gt; HashFile(Stream fileData)
+Computes the Blake3 hash of a file/stream entirely in memory. Suitable for files that fit in RAM or when streaming through a MemoryStream.Current Implementation (Working):public static async Task&lt;byte[]&gt; HashFile(Stream fileData)
+{ return await Task.Run(() =&gt; { fileData.Seek(0, SeekOrigin.Begin); var hasher = Blake3.Hasher.New(); // Using Blake3.Net var buffer = new byte[81920]; int bytesRead; while ((bytesRead = fileData.Read(buffer, 0, buffer.Length)) &gt; 0) hasher.Update(buffer.AsSpan(0, bytesRead)); return hasher.Finalize().ToArray(); });
+} Note: The old MemoryStream copy version has been replaced with proper streaming to support large files without OOM.
+public static async Task&lt;bool&gt; VerifyHash(Stream fileData, byte[] expectedSignature)
+Re-computes the Blake3 hash of the stream and compares it against the expected signature.public static async Task&lt;bool&gt; VerifyHash(Stream fileData, byte[] expectedSignature)
+{ var computed = await HashFile(fileData); return computed.SequenceEqual(expectedSignature);
+}
+Task&lt;PackedFile&gt; PackFiles( string fileInput, string outputDirectory, byte[] privateKey, // For signing hash (Ed25519/Curve25519+X) SecureData sessionKey = null, // Optional AES-256-GCM session key CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Balanced, bool encrypt = true)
+Full packing pipeline:
+Compress file with LZ4
+Compute Blake3 hash of original file
+(Optional) Sign hash with privateKey
+(Optional) Encrypt compressed data + signature with sessionKey
+Write final packed file
+Return PackedFile with path and final signature
+Task&lt;bool&gt; UnpackFile( PackedFile packedFile, string outputPath, byte[] publicKey, // To verify signature CompressionProgress progress = null, CompressionLevel level = CompressionLevel.Balanced, SecureData sessionKey = null)
+Reverse operation:
+Decrypt if encrypted
+Verify Blake3 ± signature using public key
+Decompress with LZ4
+Write original file
+Returns true on success and integrity verified.EasyPQC.FileOperationsGenerates secure random passwords based on customizable criteria (character sets and length), has a singular function;<br><a data-href="PasswordGenerator.GeneratePassword" href="passwordgenerator/functions/passwordgenerator.generatepassword.html" class="internal-link" target="_self" rel="noopener nofollow">PasswordGenerator.GeneratePassword</a>PasswordGeneratorGenerates a random password using the specified character types and length. Parameters: length: Total number of characters in the generated password. Must be &gt; 0.
 includeLowercase: Whether to include lowercase letters (a–z).
 includeUppercase: Whether to include uppercase letters (A–Z).
 includeDigits: Whether to include digits (0–9).
@@ -684,33 +722,7 @@ Note: Be sure to also include private readonly DataHandler.Accounts accounts = n
 { return await BinaryConverter.NCByteArrayToObjectAsync&lt;string&gt;(byteArray);
 } ]]></description><link>binaryconverter/examples/binaryconvertertest.frombyte.html</link><guid isPermaLink="false">BinaryConverter/Examples/BinaryConverterTest.FromByte.md</guid><pubDate>Thu, 08 May 2025 16:12:48 GMT</pubDate></item><item><title><![CDATA[BinaryConverterTest.ToByte]]></title><description><![CDATA[Turns a string into a byte array using the BinaryConverter.ObjectToByteArrayAsync methodpublic async Task&lt;byte[]&gt; ToByte()
 { return await BinaryConverter.ObjectToByteArrayAsync("This is a test string.");
-} ]]></description><link>binaryconverter/examples/binaryconvertertest.tobyte.html</link><guid isPermaLink="false">BinaryConverter/Examples/BinaryConverterTest.ToByte.md</guid><pubDate>Thu, 08 May 2025 16:12:32 GMT</pubDate></item><item><title><![CDATA[EasyPQC.FileOperations]]></title><description><![CDATA[WARNING: THIS FUNCTION DOES NOT WORK AND IS EXPERIMENTAL. THE WIKI FOR THIS IS OUTDATED AS I TEST OUT METHODS TO MAKE IT WORK.Represents a file that has been packed (compressed and optionally encrypted) with its associated signature. Fields: string FilePath: The path of the packed file.
-string Signature: The signature of the packed file, usually encrypted. Methods: ToString(): Converts the PackedFile to a string representation in the format FilePath|Signature.
-static PackedFile FromString(string packedFileString): Creates a PackedFile instance from a string representation. Defines the level of compression for LZ4 compression.
-Values: Fast: Fast compression.
-Balanced: Balanced compression.
-Max: Maximum compression. Delegate for reporting the progress of a file compression or decompression operation.
-Parameters: long current: The current position of the operation.
-long fileSize: The total size of the file.
-int percentage: The percentage of completion. Compresses a file asynchronously using LZ4 and reports progress. Parameters: fileInput: The input file path.
-fileOutput: The output file path.
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression to use. Returns: Task: The path to the compressed file. Decompresses a file asynchronously using LZ4 and reports progress. Parameters: fileInput: The input file path.
-fileOutput: The output file path.
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression to use. Returns: Task: The path to the decompressed file. Hashes a file asynchronously using Blake3. Parameters: fileData: The stream containing the file data to hash. Returns: Task&lt;byte[]&gt;: The computed hash of the file. Verifies the integrity of a file by comparing its hash to a provided signature. Parameters: fileData: The stream containing the file data to verify.
-signature: The signature to compare the hash against. Returns: Task: true if the hash matches the signature, otherwise false. Compresses a file, creates a signed hash, and optionally encrypts the file. Parameters: fileInput: The input file path.
-fileOutput: The output directory for the packed file.
-privateKey: The private key for signing the file hash.
-sessionkey: The session key for encryption (if applicable).
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression to use.
-encryptFile: Whether to encrypt the packed file. Returns: Task: A PackedFile containing the packed file and its signature. Unpacks and decompresses a file, verifying its signature and decrypting it if necessary. Parameters: inputFile: The packed file to unpack.
-outputPath: The directory where the unpacked file should be saved.
-publicKey: The public key for signature verification.
-compressionProgress: A delegate for progress reporting.
-compressionType: The level of compression used.
-sessionkey: The session key for decryption (if applicable). Returns: Task: true if the file was successfully unpacked and verified, otherwise false. ]]></description><link>easypqc/functions/easypqc.fileoperations.html</link><guid isPermaLink="false">EasyPQC/Functions/EasyPQC.FileOperations.md</guid><pubDate>Thu, 08 May 2025 15:51:32 GMT</pubDate></item><item><title><![CDATA[DataHandler.SecretManager]]></title><description><![CDATA[Handles the creation, reading, deletion overall management of secret vaults.Represents a reference to an encrypted secret file. Fields: string SecretName (internal set): Logical name of the secret.
+} ]]></description><link>binaryconverter/examples/binaryconvertertest.tobyte.html</link><guid isPermaLink="false">BinaryConverter/Examples/BinaryConverterTest.ToByte.md</guid><pubDate>Thu, 08 May 2025 16:12:32 GMT</pubDate></item><item><title><![CDATA[DataHandler.SecretManager]]></title><description><![CDATA[Handles the creation, reading, deletion overall management of secret vaults.Represents a reference to an encrypted secret file. Fields: string SecretName (internal set): Logical name of the secret.
 string SecretPath (internal set): Encrypted path to the secret file. Constructor:
 PublicKeyFile(string secretName, string secretPath) Used to initialize a new secret entry when creating a bank. Fields: string SecretName (internal set): Logical name of the secret.
 SecureData Value (internal set): Initial secret value.
