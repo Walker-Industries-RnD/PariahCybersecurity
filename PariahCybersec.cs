@@ -14,7 +14,13 @@ using WISecureData;
 
 using SecureData = WISecureData.SecureData;
 using System.Text.Json.Nodes;
-
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 //We no longer use SimpleAESEncryption(The one from the older version of the program) because it does not adhere to AES256; the new SimpleAESENcryption is extremely secure
 //It also encrypts everything at once instead of in chunks, which is a HUGE problem memory wise
@@ -245,7 +251,7 @@ throw new Exception ("Invalid Key Input");
                 {
                     JsonObject editedData = JsonData.Data;
 
-                    if (!editedData.TryGetPropertyValue(dataName, out var node) || node is not JsonValue value || value.TryGetValue<string>(out var str) == false)
+                    if (!editedData.TryGetPropertyValue(dataName, out var node) || !(node is JsonValue value) || value.TryGetValue<string>(out var str) == false)
                         throw new Exception($"Invalid or missing string for key '{dataName}'.");
 
 
@@ -446,7 +452,7 @@ throw new Exception ("Invalid Key Input");
         public static class DataEncryptions
         {
             // Shared options for both serialization and deserialization
-            private static readonly JsonSerializerOptions _jsonOpts = new()
+            private static readonly JsonSerializerOptions _jsonOpts = new JsonSerializerOptions()
             {
                 IncludeFields = true
             };
@@ -1034,12 +1040,12 @@ throw new Exception ("Invalid Key Input");
             private static SecureData DeriveSecretFromMasterPassword(string password)
             {
                 const string Salt = "XRUIOS-Vault-2025-v1"; // still public
-                byte[] key = Rfc2898DeriveBytes.Pbkdf2(
-                    password: Encoding.UTF8.GetBytes(password),
+                using var kdf = new Rfc2898DeriveBytes(
+                    password: password,
                     salt: Encoding.UTF8.GetBytes(Salt),
                     iterations: 600_000,
-                    hashAlgorithm: HashAlgorithmName.SHA512,
-                    outputLength: 32);
+                    hashAlgorithm: HashAlgorithmName.SHA512);
+                byte[] key = kdf.GetBytes(32);
 
                 // Zero the password from memory immediately
                 Array.Clear(Encoding.UTF8.GetBytes(password), 0, password.Length);
@@ -1155,7 +1161,7 @@ throw new Exception ("Invalid Key Input");
 
             public static async Task<string?> GetExecutablePathAsync(string command)
             {
-                var isWindows = OperatingSystem.IsWindows();
+                var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
                 var fileName = isWindows ? "where" : "which";
 
                 var psi = new ProcessStartInfo
@@ -1174,7 +1180,7 @@ throw new Exception ("Invalid Key Input");
                         return null;
 
                     var output = await process.StandardOutput.ReadLineAsync();
-                    await process.WaitForExitAsync();
+                    await Task.Run(() => process.WaitForExit());
 
                     return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
                 }

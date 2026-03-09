@@ -1,4 +1,6 @@
-﻿namespace WISecureData
+﻿using System;
+
+namespace WISecureData
 {
     public readonly struct SecureData : IDisposable
     {

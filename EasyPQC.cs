@@ -11,6 +11,12 @@ using System.Data.HashFunction;
 using Org.BouncyCastle.Utilities;
 using static Walker.Crypto.SimpleAESEncryption;
 using SecureData = WISecureData.SecureData;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Threading;
 
 
 namespace Pariah_Cybersecurity
@@ -565,7 +571,7 @@ namespace Pariah_Cybersecurity
             public static async Task<bool> VerifyHash(Stream fileData, byte[] signature)
             {
                 var fileBytes = await HashFile(fileData);
-                return fileBytes.SequenceEqual(signature);
+                return CryptographicOperations.FixedTimeEquals(fileBytes, signature);
             }
 
 

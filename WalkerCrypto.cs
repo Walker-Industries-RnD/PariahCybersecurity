@@ -5,6 +5,10 @@ using Org.BouncyCastle.Crypto.Parameters;
 using System.Security.Cryptography;
 using System.Text;
 using WISecureData;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
+using System.IO;
 
 namespace Walker.Crypto
 {
@@ -49,8 +53,14 @@ namespace Walker.Crypto
             if (plainText == null) throw new ArgumentNullException(nameof(plainText));
             if (password == null) throw new ArgumentNullException(nameof(password));
 
-            var salt = RandomNumberGenerator.GetBytes(16);
-            var iv = RandomNumberGenerator.GetBytes(12);
+            
+            var salt = new byte[16];
+            RandomNumberGenerator.Fill(salt);
+            var iv = new byte[12];
+            RandomNumberGenerator.Fill(iv);
+            
+
+
             var key = DeriveKey(password, salt);
 
             var cipher = new GcmBlockCipher(new AesEngine());

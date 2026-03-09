@@ -1,5 +1,9 @@
-﻿using System.Text.Json;
+﻿using System;
+using System.IO;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
 using Ceras;
 using Newtonsoft.Json.Linq;
 
@@ -55,7 +59,7 @@ public static class BinaryConverter
         }
     }
 
-    public static async Task<T?> NCByteArrayToObjectAsync<T>(
+    public static async Task<T> NCByteArrayToObjectAsync<T>(
         byte[] data,
         SerializerConfig? config = null,
         CancellationToken cancellationToken = default)

@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using System;
+using System.Runtime.InteropServices;
 
 namespace WISecureData
 {
@@ -38,15 +40,8 @@ namespace WISecureData
                 return;
             }
 
-            unsafe
-            {
-                fixed (char* chars = value)
-                {
-                    // Zero out original string content
-                    for (int i = 0; i < value.Length; i++)
-                        chars[i] = '\0';
-                }
-            }
+            var span = MemoryMarshal.AsMemory(value.AsMemory()).Span;
+            span.Fill('\0');
         }
 
     }
