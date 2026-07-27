@@ -639,53 +639,70 @@ namespace Pariah_Cybersecurity
                 bool isEncrypted = Path.GetExtension(inputFile.FilePath) == ".encpack";
                 string tempFilePath = inputFile.FilePath;
 
-                if (isEncrypted)
+                try
                 {
-                    tempFilePath = Path.Combine(
-                        Path.GetTempPath(),
-                        Path.GetFileNameWithoutExtension(inputFile.FilePath) + ".decrypted");
-                    await Walker.Crypto.AESFileEncryptor.DecryptFileAsync(inputFile.FilePath, tempFilePath, sessionkey);
+                    if (isEncrypted)
+                    {
+                        tempFilePath = Path.Combine(
+                            Path.GetTempPath(),
+                            Path.GetFileNameWithoutExtension(inputFile.FilePath) + ".decrypted");
+
+                        // A wrong password or a tampered file fails the AES-GCM authentication
+                        // tag and throws here; the catch below turns that into a clean 'false'
+                        // instead of letting the whole call crash.
+                        await Walker.Crypto.AESFileEncryptor.DecryptFileAsync(inputFile.FilePath, tempFilePath, sessionkey);
+                    }
+
+                    var decryptedSign = SimpleAESEncryption.Decrypt(
+                        AESEncryptedText.FromString(inputFile.Signature),
+                        sessionkey);
+
+                    byte[] expectedSignature = Convert.FromBase64String(decryptedSign.ConvertToString());
+                    byte[] compressedBytes = await EasyPQC.ReadAllBytesAsync(tempFilePath);
+
+                    // wrap compressedBytes in a MemoryStream for hashing
+                    using var hashStream = new MemoryStream(compressedBytes);
+                    byte[] actualHash = await HashFile(hashStream);
+                    string base64Hash = Convert.ToBase64String(actualHash);
+
+                    var finalpub = Signatures.DecodePublic(publicKey);
+                    var publicKeyBytes = Signatures.Encode(finalpub);
+
+                    if (!await Signatures.VerifySignature(publicKeyBytes, expectedSignature, base64Hash))
+                        return false;
+
+                    LZ4Level comptype = compressionType switch
+                    {
+                        CompressionLevel.Fast => LZ4Level.L00_FAST,
+                        CompressionLevel.Balanced => LZ4Level.L09_HC,
+                        CompressionLevel.Max => LZ4Level.L12_MAX,
+                        _ => LZ4Level.L00_FAST
+                    };
+
+                    var compressor = new LZ4Compressor(comptype);
+                    using var compressedStream = new MemoryStream(compressedBytes);
+                    using var decompressedStream = new MemoryStream();
+                    await compressor.DecompressAsync(compressedStream, decompressedStream);
+
+                    string finalOutputPath = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(tempFilePath));
+                    await EasyPQC.WriteAllBytesAsync(finalOutputPath, decompressedStream.ToArray(), null);
+
+                    return true;
                 }
-
-                var decryptedSign = SimpleAESEncryption.Decrypt(
-                    AESEncryptedText.FromString(inputFile.Signature),
-                    sessionkey);
-
-                byte[] expectedSignature = Convert.FromBase64String(decryptedSign.ConvertToString());
-                byte[] compressedBytes = await EasyPQC.ReadAllBytesAsync(tempFilePath);
-
-                // ← here: wrap compressedBytes in a MemoryStream for hashing
-                using var hashStream = new MemoryStream(compressedBytes);
-                byte[] actualHash = await HashFile(hashStream);
-                string base64Hash = Convert.ToBase64String(actualHash);
-
-                var finalpub = Signatures.DecodePublic(publicKey);
-                var publicKeyBytes = Signatures.Encode(finalpub);
-
-                if (!await Signatures.VerifySignature(publicKeyBytes, expectedSignature, base64Hash))
+                catch
                 {
-                    if (isEncrypted) File.Delete(tempFilePath);
+                    // Wrong password / tampering (GCM auth failure), corrupt data, or a bad
+                    // signature all resolve to 'false' rather than throwing out of UnpackFile.
                     return false;
                 }
-
-                LZ4Level comptype = compressionType switch
+                finally
                 {
-                    CompressionLevel.Fast => LZ4Level.L00_FAST,
-                    CompressionLevel.Balanced => LZ4Level.L09_HC,
-                    CompressionLevel.Max => LZ4Level.L12_MAX,
-                    _ => LZ4Level.L00_FAST
-                };
-
-                var compressor = new LZ4Compressor(comptype);
-                using var compressedStream = new MemoryStream(compressedBytes);
-                using var decompressedStream = new MemoryStream();
-                await compressor.DecompressAsync(compressedStream, decompressedStream);
-
-                string finalOutputPath = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(tempFilePath));
-                await EasyPQC.WriteAllBytesAsync(finalOutputPath, decompressedStream.ToArray(), null);
-
-                if (isEncrypted) File.Delete(tempFilePath);
-                return true;
+                    // Always clean up the decrypted temp file (never delete the caller's own input).
+                    if (isEncrypted && File.Exists(tempFilePath))
+                    {
+                        try { File.Delete(tempFilePath); } catch { }
+                    }
+                }
             }
 
 

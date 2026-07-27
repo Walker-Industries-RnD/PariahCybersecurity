@@ -161,6 +161,10 @@ namespace Pariah_Cybersecurity
 
             //Add conditionals later(?)
 
+            /// <summary>
+            /// Adds a NEW variable to the JSON. Throws if the variable already exists,
+            /// so use UpdateJson to change (or add-or-update) an existing variable.
+            /// </summary>
             public static async Task<PariahJSON> AddToJson<T>(PariahJSON JsonData, string dataName, object data, SecureData Key)
             {
                 try
@@ -170,6 +174,12 @@ namespace Pariah_Cybersecurity
                     if (Key == null)
                     {
 throw new Exception ("Invalid Key Input");
+                    }
+
+                    //Check existence here so the caller doesn't have to; if it already exists, point them at UpdateJson.
+                    if (editedData.ContainsKey(dataName))
+                    {
+                        throw new Exception($"The variable '{dataName}' already exists in the JSON. Use UpdateJson instead to modify an existing variable.");
                     }
 
                     var newJsonData = await DataEncryptions.PackData<T>(data, (SecureData)Key);
@@ -209,6 +219,10 @@ throw new Exception ("Invalid Key Input");
                 }
             }
 
+            /// <summary>
+            /// Updates an existing variable, or adds it if it doesn't exist yet (an upsert).
+            /// Use AddToJson when you specifically want it to fail if the variable already exists.
+            /// </summary>
             public static async Task<PariahJSON> UpdateJson<T>(PariahJSON JsonData, string dataName, object data, SecureData Key)
             {
 
@@ -216,6 +230,7 @@ throw new Exception ("Invalid Key Input");
                 {
                     JsonObject editedData = JsonData.Data;
 
+                    //Remove first so this acts as an add-or-update; Remove is a no-op if it isn't there yet.
                     editedData.Remove(dataName);
 
 
@@ -2009,7 +2024,7 @@ throw new Exception ("Invalid Key Input");
                         throw new Exception("A session with this ID and user does not exist.");
                     }
 
-                    DateTime parsedTimeCheck = DateTime.Parse(sess.Expiry, null, System.Globalization.DateTimeStyles.AssumeUniversal);
+                    DateTime parsedTimeCheck = DateTime.Parse(sess.Expiry, null, System.Globalization.DateTimeStyles.RoundtripKind);
 
                     if (DateTime.UtcNow > parsedTimeCheck)
                     {
@@ -2061,6 +2076,13 @@ throw new Exception ("Invalid Key Input");
                         DateTime newExpiry = DateTime.UtcNow.AddMinutes(isTrusted ? SecuritySettings.TrustedExpiryDuration : SecuritySettings.ExpiryDuration);
                         var newIsTrustedData = newExpiry.ToString("o") + "|" + isTrusted.ToString();
                         var newEncIsTrusted = SimpleAESEncryption.Encrypt(newIsTrustedData, SecuritySettings.PublicKey).ToString();
+
+                        // Sweep out any OTHER expired sessions so abandoned ones don't pile up (multi-user cleanup)
+                        ActiveSessList.RemoveAll(s =>
+                        {
+                            try { return DateTime.UtcNow > DateTime.Parse(s.Expiry, null, System.Globalization.DateTimeStyles.RoundtripKind); }
+                            catch { return false; }
+                        });
 
                         // Replace old session
                         ActiveSessList.Remove(sess);
@@ -2958,7 +2980,7 @@ throw new Exception ("Invalid Key Input");
                         throw new Exception("A session with this ID and user does not exist.");
                     }
 
-                    DateTime parsedTimeCheck = DateTime.Parse(sess.Expiry, null, System.Globalization.DateTimeStyles.AssumeUniversal);
+                    DateTime parsedTimeCheck = DateTime.Parse(sess.Expiry, null, System.Globalization.DateTimeStyles.RoundtripKind);
 
                     if (DateTime.UtcNow > parsedTimeCheck)
                     {
@@ -3010,6 +3032,13 @@ throw new Exception ("Invalid Key Input");
                         DateTime newExpiry = DateTime.UtcNow.AddMinutes(isTrusted ? SecuritySettings.TrustedExpiryDuration : SecuritySettings.ExpiryDuration);
                         var newIsTrustedData = newExpiry.ToString("o") + "|" + isTrusted.ToString();
                         var newEncIsTrusted = SimpleAESEncryption.Encrypt(newIsTrustedData, SecuritySettings.PublicKey).ToString();
+
+                        // Sweep out any OTHER expired sessions so abandoned ones don't pile up (multi-user cleanup)
+                        ActiveSessList.RemoveAll(s =>
+                        {
+                            try { return DateTime.UtcNow > DateTime.Parse(s.Expiry, null, System.Globalization.DateTimeStyles.RoundtripKind); }
+                            catch { return false; }
+                        });
 
                         // Replace old session
                         ActiveSessList.Remove(sess);

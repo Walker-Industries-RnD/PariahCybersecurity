@@ -68,6 +68,10 @@ Now yours to wield.
 | Accounts                         | Done   | Minimalist local auth with recovery keys                   |
 | AccountsWithSessions             | Done   | Full session system with sliding expiry & tamper detection |
 | EasyPQC (Kyber + Dilithium)      | Done   | Drop-in post-quantum signatures & KEM                      |
+| SecureData                       | Done   | Secrets held AES-encrypted at rest in RAM, page-locked, auto-wiped |
+| SecureCache                      | Done   | Fast, cross-platform in-process cache with SecureData values + TTLs |
+| AntiTamper                       | Done   | Opt-in anti-debug / anti-injection + wipe-on-detect watchdog |
+| HardwareKeyStore                 | Done   | Root key bound to the TPM (Windows) so it can't be exfiltrated |
 | File Packing & Compression       | 95%    | LZ4 + Blake3 + forward secrecy                             |
 | Merging System                   | ---    | Handles syncing data between sessions                      |
 
@@ -98,6 +102,24 @@ var loaded = await JSONDataHandler.GetVariable<List<ImageObj>>(json2, "Schematic
 
 ---
 
+## Cache Secrets Fast — and Protected
+
+`SecureCache` is a fast, cross-platform, in-process cache. Every value is stored as a `SecureData`, so it's AES-encrypted at rest in memory, page-locked, and wiped on eviction/expiry — no extra work on your end.
+
+```csharp
+using var cache = new SecureCache(defaultTtl: TimeSpan.FromMinutes(10));
+
+cache.Set("session-token", myToken);          // stored encrypted, expires in 10 min
+cache.Set("otp", "839210", TimeSpan.FromSeconds(30)); // per-item TTL
+
+string? token = cache.GetString("session-token");     // null if missing/expired
+if (cache.TryGet("session-token", out var protectedCopy)) { /* stays a SecureData */ }
+```
+
+> **In-process on purpose.** For a single process this is *faster* than a remote Redis/Garnet server (no network, no serialization), and — critically — your secrets never leave your process's protected memory. A remote cache (Garnet/Redis) is the right call only when the cache must be **shared across processes or machines**; in that case the values live in the server's memory and travel the network, which `SecureData` cannot protect. `SecureCache` implements `ISecureCache`, so a distributed backend can be slotted in behind the same simple API when you actually need it.
+
+---
+
 ## Roadmap
 
 | Task                                      | Status       |
@@ -106,7 +128,7 @@ var loaded = await JSONDataHandler.GetVariable<List<ImageObj>>(json2, "Schematic
 | Remove all default/"Default" keys         | Done         |
 | Switch to `System.Text.Json`              | Done         |
 | Custom `DataRequest` root path            | Done         |
-| Fix final `UnpackFile` edge case          | In Progress  |
+| Fix final `UnpackFile` edge case          | Done         |
 | Release full password manager demo app    | Coming Soon  |
 
 ---
@@ -124,6 +146,8 @@ dotnet add package Data.HashFunction.Blake3
 dotnet add package System.Data.HashFunction.Interfaces
 
 ```
+
+> **The memory-protection layer is dependency-free.** `SecureData`, `SecureCache`, `AntiTamper`, and `HardwareKeyStore` are built entirely on .NET's own libraries — `System.Security.Cryptography` (AES / CNG / TPM), `System.Collections.Concurrent`, and P/Invoke to the OS. Nothing extra to install.
 
 ## Special Thanks
 
