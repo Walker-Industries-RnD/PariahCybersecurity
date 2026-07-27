@@ -561,9 +561,10 @@ throw new Exception ("Invalid Key Input");
                 //You can (and should) generally create PublicDecryptKey as null, unless you are making a software specific "public" key (which might be better just being a secret but I digress
                 //Whenever PublicKeyFileInit.SecretPath is null, the BankDirectory is used; PublicKeyFileInit.Key is automatically encrypted with PubliccDecryptKey
 
-                //First up let's set PublicDecryptKey
-   
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                //Generate a random per-vault salt and derive the key from it. The salt is
+                //stored (in plaintext - salts aren't secret) inside the bank file below.
+                string vaultSalt = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey, vaultSalt);
                 
                 //Now we see if a Bank with the same name exists at the path we selected
 
@@ -587,7 +588,7 @@ throw new Exception ("Invalid Key Input");
                     {
                         //First create the variables 
 
-                        SecureData savepath = BankDirectory.ToSecureData();
+                        SecureData savepath = new SecureData(Encoding.UTF8.GetBytes(BankDirectory));
 
                         if (item.SecretPath != null)
                         {
@@ -627,7 +628,8 @@ throw new Exception ("Invalid Key Input");
 
                 var bankOpeningData = new JsonObject
                 {
-                    ["Bank Name"] = BankName
+                    ["Bank Name"] = BankName,
+                    ["Vault Salt"] = vaultSalt
                 };
 
                 await JSONDataHandler.CreateJsonFile(BankName, BankDirectory, bankOpeningData);
@@ -646,12 +648,24 @@ throw new Exception ("Invalid Key Input");
                 return File.Exists(secretManagerPath);
             }
 
+            //Reads the per-vault random salt stored (in plaintext - salts aren't secret) inside
+            //the bank file, and derives the vault key from your shared secret with it. A bank
+            //created before this change (no stored salt) falls back to an empty context.
+            private static async Task<SecureData> DeriveVaultKey(string BankDirectory, string BankName, string SharedSecretKey)
+            {
+                var bank = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
+                string vaultSalt = "";
+                if (bank.Data.TryGetPropertyValue("Vault Salt", out var node) && node is JsonValue jv && jv.TryGetValue<string>(out var s))
+                    vaultSalt = s;
+                return DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey, vaultSalt);
+            }
+
             //Gets a public secret by finding the path within the secret bank, going to the file and decrypting the value, add SecretDecryptKey to everything
             public static async Task<SecureData> GetPublicSecret(string BankDirectory, string BankName, string PublicSecretName, string SharedSecretKey)
             {
                 //First up let's set PublicDecryptKey
 
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                var keyToUseAsPassword = await DeriveVaultKey(BankDirectory, BankName, SharedSecretKey);
 
 
 
@@ -699,7 +713,7 @@ throw new Exception ("Invalid Key Input");
             public static async Task<int> GetSecretRound(string BankDirectory, string BankName, string PublicSecretName, string SharedSecretKey)
             {
                 //First up let's set PublicDecryptKey
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                var keyToUseAsPassword = await DeriveVaultKey(BankDirectory, BankName, SharedSecretKey);
 
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
@@ -747,7 +761,7 @@ throw new Exception ("Invalid Key Input");
             public static async Task AddPublicSecret(string BankDirectory, string BankName, PublicKeyFileInit PublicSecret, string SharedSecretKey)
             {
                 //First up let's set PublicDecryptKey
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                var keyToUseAsPassword = await DeriveVaultKey(BankDirectory, BankName, SharedSecretKey);
 
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
@@ -757,7 +771,7 @@ throw new Exception ("Invalid Key Input");
                 //Now to add the actual value to the main file
 
 
-                SecureData savepath = BankDirectory.ToSecureData();
+                SecureData savepath = new SecureData(Encoding.UTF8.GetBytes(BankDirectory));
 
                 if (PublicSecret.SecretPath != null)
                 {
@@ -796,7 +810,7 @@ throw new Exception ("Invalid Key Input");
 
             public static async Task DeletePublicSecret(string BankDirectory, string BankName, string PublicSecretName, string SharedSecretKey)
             {
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                var keyToUseAsPassword = await DeriveVaultKey(BankDirectory, BankName, SharedSecretKey);
 
                 //Load the main bank JSON
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
@@ -842,7 +856,7 @@ throw new Exception ("Invalid Key Input");
             public static async Task<List<string>> GetAllSecretNames(string BankDirectory, string BankName, string SharedSecretKey)
             {
 
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                var keyToUseAsPassword = await DeriveVaultKey(BankDirectory, BankName, SharedSecretKey);
 
                 var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
 
@@ -866,7 +880,7 @@ throw new Exception ("Invalid Key Input");
 
                 var pqClass = new EasyPQC.Rotation();
 
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey); //We will use the motherboard's serial key as the publicdecryptkey by default
+                var keyToUseAsPassword = await DeriveVaultKey(BankDirectory, BankName, SharedSecretKey);
 
 
                 if (salt == null && newSalt == null)
@@ -924,98 +938,44 @@ throw new Exception ("Invalid Key Input");
 
             }
 
-            //Migrate is a WIP function which should NOT be used yet
-            public static async Task MigratePublicSecrets(string BankDirectory, string BankName, Dictionary<string, (SecureData? OldPassword, SecureData? NewPassword, string NewPath)> secretMigrations, string newBankDirPath,
-                string? NewFileDirectoryPath, SecureData OldPublicDecryptKey, SecureData? SharedSecretKey)
+            //Migrates every secret from one bank into a brand-new bank, re-encrypting each under
+            //the new bank's key (which gets its own fresh random salt). It reuses CreateBank +
+            //AddPublicSecret, so the new bank is built exactly like any other and inherits the
+            //per-vault salting automatically. The old bank is left in place (delete it yourself
+            //if you want). NOTE: rotation counts (Pneumentations) restart at 0 in the new bank -
+            //the current, already-rotated value is carried over as the new base. (Per-secret
+            //passwords/paths from the old draft are intentionally dropped; the whole bank is
+            //re-keyed as one.)
+            public static async Task MigratePublicSecrets(
+                string OldBankDirectory, string OldBankName, string OldSharedSecretKey,
+                string NewBankDirectory, string NewBankName, string NewSharedSecretKey,
+                string NewSecretFileDirectory)
             {
-                // Use default key if none provided
-                var keyToUseAsPassword = DeviceIdentifier.GetUserBoundMasterSecret(SharedSecretKey.ToString()); //We will use the motherboard's serial key as the publicdecryptkey by default
+                // 1. Derive the old bank's key from its stored salt and read its secret list.
+                var oldKey = await DeriveVaultKey(OldBankDirectory, OldBankName, OldSharedSecretKey);
+                var oldBank = await JSONDataHandler.LoadJsonFile(OldBankName, OldBankDirectory);
+                var oldSecrets = (List<PublicKeyFile>)await JSONDataHandler.GetVariable<List<PublicKeyFile>>(oldBank, "PublicSecrets", oldKey);
 
-                // Load main bank file using OldPublicDecryptKey
-                var loadedJson = await JSONDataHandler.LoadJsonFile(BankName, BankDirectory);
-
-                var listOfPublicKeyFile = (List<PublicKeyFile>)await JSONDataHandler.GetVariable<List<PublicKeyFile>>(loadedJson, "PublicSecrets", OldPublicDecryptKey);
-
-
-                //We are going to assume that either OldPassword or OldPublicDecryptKey will be given, else this will break
-                foreach (var secretFile in listOfPublicKeyFile)
+                // 2. Decrypt every secret's current value with the old key.
+                var carried = new List<(string Name, SecureData Value)>();
+                foreach (var secret in oldSecrets)
                 {
-                    if (!secretMigrations.TryGetValue(secretFile.SecretName, out var migrationInfo))
-                    {
-                        //Remove the item from the list and continue
-                        listOfPublicKeyFile.Remove(secretFile);
-                    }
-
-                    var (oldPassword, newPassword, newPath) = migrationInfo;
-
-
-                    //If oldPassword is null, we will instead use OldPublicDecryptKey
-
-                    if (oldPassword == null)
-                    {
-                        oldPassword = OldPublicDecryptKey;
-                    }
-
-                    //If the newPassword is null, we will use NewPublicDecryptKey instead
-
-                    if (newPassword == null)
-                    {
-                        newPassword = keyToUseAsPassword;
-                    }
-
-                    //Let's get the file with the stuff we need
-                    var decryptedPath = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(secretFile.SecretPath), (SecureData)oldPassword).ConvertToString();
-                    var jsonWithKey = await JSONDataHandler.LoadJsonFile(secretFile.SecretName, decryptedPath);
-
-                    // Decrypt the actual values
-                    var encryptedSecretValueStr = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Secret Value", (SecureData)oldPassword);
-                    var encryptedPneumentationsStr = (string)await JSONDataHandler.GetVariable<string>(jsonWithKey, "Pneumentations", (SecureData)oldPassword);
-
-                    //Remember, the strings we saved are SimpleAESEncryption.AESEncryptedText converted to text with the .ToString() method
-                    var decryptedSecretValue = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(encryptedSecretValueStr), (SecureData)oldPassword);
-                    var decryptedPneumentations = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(encryptedPneumentationsStr), (SecureData)oldPassword);
-
-                    // Parse decrypted values
-                    string secretString = decryptedSecretValue.ConvertToString();
-                    int pneumentationCount = int.Parse(decryptedPneumentations.ConvertToString());
-
-                    // Encrypt with new password
-                    var newEncryptedSecret = SimpleAESEncryption.Encrypt(secretString, (SecureData)newPassword).ToString();
-                    var newEncryptedPneumentation = SimpleAESEncryption.Encrypt(pneumentationCount.ToString(), (SecureData)newPassword).ToString();
-
-                    // If NewPath is empty, we use newBankDirectoryPath
-                    var newSavePath = newPath ?? NewFileDirectoryPath; //WE LOVE ?? CHECKS
-
-                    var updatedJson = new JsonObject
-                    {
-                        ["Secret Name"] = secretFile.SecretName,
-
-                    };
-
-                    await JSONDataHandler.CreateJsonFile(secretFile.SecretName, NewFileDirectoryPath, updatedJson);
-
-                    var loadedJson2 = await JSONDataHandler.LoadJsonFile(secretFile.SecretName, NewFileDirectoryPath);
-
-                    var sValue = await JSONDataHandler.AddToJson<string>(loadedJson2, "Secret Value", newEncryptedSecret, (SecureData)newPassword);
-
-                    var pneuValue = await JSONDataHandler.AddToJson<string>(sValue, "Pneumentations", newEncryptedPneumentation, (SecureData)newPassword);
-
-                    await JSONDataHandler.SaveJson(pneuValue);
-
-                    // Update the path in bank
-
-                    var newEncryptedPath = SimpleAESEncryption.Encrypt(newSavePath, (SecureData)newPassword);
-                    secretFile.SecretPath = SimpleAESEncryption.Encrypt(newEncryptedPath.ToString(), (SecureData)newPassword).ToString();
-
+                    var path = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(secret.SecretPath), oldKey).ConvertToString();
+                    var secretFile = await JSONDataHandler.LoadJsonFile(secret.SecretName, path);
+                    var encValue = (string)await JSONDataHandler.GetVariable<string>(secretFile, "Secret Value", oldKey);
+                    var value = SimpleAESEncryption.Decrypt(SimpleAESEncryption.AESEncryptedText.FromString(encValue), oldKey);
+                    carried.Add((secret.SecretName, value));
                 }
 
-                // Save updated bank as a new bank in a new location
-                var bankName = loadedJson.FileName;
-                await CreateBank(newBankDirPath, bankName, null, keyToUseAsPassword.ToString());
-                var fileToUserp = await JSONDataHandler.LoadJsonFile(BankName, newBankDirPath);
-                var finalizedFile = await JSONDataHandler.UpdateJson<List<PublicKeyFile>>(fileToUserp, "PublicSecrets", listOfPublicKeyFile, keyToUseAsPassword);
+                // 3. Create the new bank (fresh random salt) and add each secret through the normal path.
+                await CreateBank(NewBankDirectory, NewBankName, null, NewSharedSecretKey);
 
-                await JSONDataHandler.SaveJson(finalizedFile);
+                var newPathSd = new SecureData(Encoding.UTF8.GetBytes(NewSecretFileDirectory));
+                foreach (var (name, value) in carried)
+                {
+                    var init = new PublicKeyFileInit(name, newPathSd, value);
+                    await AddPublicSecret(NewBankDirectory, NewBankName, init, NewSharedSecretKey);
+                }
             }
 
 
@@ -1032,32 +992,42 @@ throw new Exception ("Invalid Key Input");
         public static class DeviceIdentifier
         {
 
-            private static SecureData? _cachedUserBoundSecret;
+            // Cache per (user id + vault context). The old single-field cache returned the
+            // first derived secret for every later call, ignoring the key you passed — so a
+            // process that used more than one key silently got the wrong one. This keys on the inputs.
+            private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SecureData> _userBoundSecrets = new();
 
  
-            public static SecureData GetUserBoundMasterSecret(string xruiosUserId)
+            public static SecureData GetUserBoundMasterSecret(string xruiosUserId, string vaultContext = "")
             {
                 if (string.IsNullOrWhiteSpace(xruiosUserId))
                     throw new ArgumentException("XRUIOS User ID cannot be empty");
 
-                // Normalise exactly the way you want (case-insensitive + trimmed is usual)
+                // Normalise (case-insensitive + trimmed).
                 string normalisedId = xruiosUserId.Trim().ToLowerInvariant();
+                vaultContext ??= "";
 
-                return _cachedUserBoundSecret ??= DeriveSecretFromMasterPassword(normalisedId);
+                string cacheKey = normalisedId.Length + ":" + normalisedId + vaultContext;
+                return _userBoundSecrets.GetOrAdd(cacheKey, _ => DeriveSecretFromMasterPassword(normalisedId, vaultContext));
             }
 
-            private static SecureData DeriveSecretFromMasterPassword(string password)
+            private static SecureData DeriveSecretFromMasterPassword(string password, string vaultContext)
             {
-                const string Salt = "XRUIOS-Vault-2025-v1"; // still public
+                // The salt is no longer a single global constant. When a vault context is
+                // supplied it is mixed in, so the same shared secret never derives the same key
+                // across two different vaults. (No context = the original salt, so other callers'
+                // existing data still decrypts.)
+                byte[] salt = string.IsNullOrEmpty(vaultContext)
+                    ? Encoding.UTF8.GetBytes("XRUIOS-Vault-2025-v1")
+                    : Encoding.UTF8.GetBytes("XRUIOS-Vault-2025-v1|" + vaultContext);
+
                 byte[] key = Rfc2898DeriveBytes.Pbkdf2(
                     password: Encoding.UTF8.GetBytes(password),
-                    salt: Encoding.UTF8.GetBytes(Salt),
+                    salt: salt,
                     iterations: 600_000,
                     hashAlgorithm: HashAlgorithmName.SHA512,
                     outputLength: 32);
 
-                // Zero the password from memory immediately
-                Array.Clear(Encoding.UTF8.GetBytes(password), 0, password.Length);
                 return new SecureData(key);
             }
         }
