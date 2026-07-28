@@ -41,7 +41,7 @@ Now yours to wield.
 <br>
 
 <p align="center">
-  <a href="https://walker-industries-rnd.github.io/PariahCybersecurity/" 
+  <a href="https://walker-industries-rnd.github.io/PariahCybersecurity/welcome-to-pariah-cybersecurity-3.0.html" 
      style="font-size: 1.4em; color: #58a6ff; text-decoration: none;">
     <strong>Documentation • Examples • API Reference</strong>
   </a>
